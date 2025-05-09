@@ -39,7 +39,7 @@ if (is_numeric( $Params['user_parameters']['chat_id']) && is_numeric($Params['us
                     $Chat->updateThis();
 
                     $tpl = erLhcoreClassTemplate::getInstance('lhkernel/alert_success.tpl.php');
-                    $tpl->set('msg', erTranslationClassLhTranslation::getInstance()->getTranslation('chat/transferuser', 'Chat department was changed to') . ' ' . $dep);
+                    $tpl->set('msg', erTranslationClassLhTranslation::getInstance()->getTranslation('chat/transferuser', 'Chat department was changed to') . ' ' . htmlspecialchars((string)$dep));
 
                     erLhcoreClassChatEventDispatcher::getInstance()->dispatch('chat.chat_owner_changed', array('chat' => & $Chat, 'user' => $currentUser->getUserData()));
 
@@ -91,7 +91,7 @@ if (is_numeric( $Params['user_parameters']['chat_id']) && is_numeric($Params['us
                         }
 
                         $tpl = erLhcoreClassTemplate::getInstance('lhkernel/alert_success.tpl.php');
-                        $tpl->set('msg', erTranslationClassLhTranslation::getInstance()->getTranslation('chat/transferuser', 'Chat owner was changed to') . ' ' . $user->name_support);
+                        $tpl->set('msg', erTranslationClassLhTranslation::getInstance()->getTranslation('chat/transferuser', 'Chat owner was changed to') . ' ' . htmlspecialchars($user->name_support));
 
                         erLhcoreClassChatEventDispatcher::getInstance()->dispatch('chat.chat_owner_changed', array('chat' => & $Chat, 'user' => $user));
 
