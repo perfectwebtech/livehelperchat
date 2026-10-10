@@ -90,6 +90,8 @@ if ((isset($_POST['Update_account']) || isset($_POST['Save_account'])) && $can_e
 
         $UserData->updateThis();
 
+        $currentUser->refreshSessionPasswordHash($UserData);
+
         erLhcoreClassUserDep::setHideOnlineStatus($UserData);
         
         if ($can_edit_groups == true) {

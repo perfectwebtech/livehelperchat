@@ -173,6 +173,8 @@ if (isset($_POST['Update'])) {
     	
         $UserData->updateThis();
 
+        $currentUser->refreshSessionPasswordHash($UserData);
+
         erLhcoreClassUserDep::setHideOnlineStatus($UserData);
 
         erLhcoreClassChat::updateActiveChats($UserData->id);
