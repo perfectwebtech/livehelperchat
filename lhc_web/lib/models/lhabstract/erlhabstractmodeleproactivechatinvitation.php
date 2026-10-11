@@ -943,6 +943,9 @@ class erLhAbstractModelProactiveChatInvitation {
             erLhcoreClassFileUpload::mkdirRecursive( $dir );
 
             if ($isLocal == false) {
+                if (!erLhcoreClassSearchHandler::isImageFile('AbstractInput_' . $attr)) {
+                    return;
+                }
                 $this->$attr = erLhcoreClassSearchHandler::moveUploadedFile('AbstractInput_'.$attr, $dir . '/','.' );
             } else {
                 $this->$attr = erLhcoreClassSearchHandler::moveLocalFile($localFile, $dir . '/','.' );
