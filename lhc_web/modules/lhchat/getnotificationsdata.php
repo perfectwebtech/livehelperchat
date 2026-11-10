@@ -7,7 +7,9 @@ $notificationsTypes = array();
 $type = 'pending_chat';
 $notification_message_type = erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat','Pending Chat');
 
-foreach ($Params['user_parameters_unordered']['id'] as $itemNotification) {
+$requestedIds = isset($Params['user_parameters_unordered']['id']) && is_array($Params['user_parameters_unordered']['id']) ? $Params['user_parameters_unordered']['id'] : array();
+
+foreach ($requestedIds as $itemNotification) {
     $partsAlerts = explode('__',$itemNotification);
     $item = array_shift($partsAlerts);
 
@@ -20,6 +22,11 @@ foreach ($Params['user_parameters_unordered']['id'] as $itemNotification) {
     } else {
         $type = $item;
     }    
+}
+
+if (empty($itemsID)) {
+    echo json_encode(array());
+    exit;
 }
 
 $items = erLhcoreClassChat::getList(array(

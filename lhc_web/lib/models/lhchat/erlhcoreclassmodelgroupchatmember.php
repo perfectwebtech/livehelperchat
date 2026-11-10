@@ -1,5 +1,6 @@
 <?php
 
+#[\AllowDynamicProperties]
 class erLhcoreClassModelGroupChatMember
 {
     use erLhcoreClassDBTrait;

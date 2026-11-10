@@ -6,6 +6,7 @@
  *
  * */
 
+#[\AllowDynamicProperties]
 class erLhcoreClassModelmsg
 {
     use erLhcoreClassDBTrait;

@@ -6,6 +6,7 @@ namespace MaxMind\Db\Reader;
  * This class provides the metadata for the database. This is primarily
  * meant for internal use.
  */
+#[\AllowDynamicProperties]
 class Metadata
 {
     private $binaryFormatMajorVersion;

@@ -66,7 +66,7 @@ class Install
                 $Errors[] = "Please enter database $key";
             }
         }
-        if (!filter_var($database['database'], FILTER_SANITIZE_STRING))
+        if (trim((string)$database['database']) === '')
         {
             $Errors[] = 'Please enter database name';
         }
@@ -121,7 +121,7 @@ class Install
             $Errors[] = 'Wrong email address';
         }
 
-        if (!filter_var($form->DefaultDepartament, FILTER_SANITIZE_STRING))
+        if (trim((string)$form->DefaultDepartament) === '')
         {
             $Errors[] = 'Please enter default department name';
         }

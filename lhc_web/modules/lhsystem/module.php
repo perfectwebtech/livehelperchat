@@ -4,6 +4,12 @@ $Module = array( "name" => "System configuration");
 
 $ViewList = array();
 
+// Public health probe, see modules/lhsystem/health.php
+$ViewList['health'] = array(
+    'params' => array(),
+    'uparams' => array('token')
+);
+
 $ViewList['htmlcode'] = array(
     'params' => array(),
     'functions' => array( 'generatejs' )

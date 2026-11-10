@@ -7,6 +7,7 @@
  *
  */
 
+#[\AllowDynamicProperties]
 class erLhAbstractModelSurvey {
 
     use erLhcoreClassDBTrait;

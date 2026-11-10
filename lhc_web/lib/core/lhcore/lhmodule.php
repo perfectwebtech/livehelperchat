@@ -105,6 +105,10 @@ class erLhcoreClassModule{
                 if (file_exists($fileLocation)) {
                     $startTime = microtime();
 
+                    if (!isset($Result)) {
+                        $Result = array(); // views that only stream output never define it
+                    }
+
                     $includeStatus = include($fileLocation);
 
                     self::logSlowRequest($startTime, microtime(),(isset($currentUser) && $currentUser->isLogged() ? $currentUser->getUserID() : 0));

@@ -33,6 +33,7 @@ namespace GeoIp2\Model;
  * @property \GeoIp2\Record\Traits $traits Data for the traits of the
  * requested IP address.
  */
+#[\AllowDynamicProperties]
 class Country implements \JsonSerializable
 {
     private $continent;

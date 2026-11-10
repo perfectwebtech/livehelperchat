@@ -1,0 +1,7 @@
+.git
+.github
+lhc_web/tools/vendor
+lhc_web/lib/vendor
+lhc_web/node_modules
+lhc_web/cache/*/*
+lhc_web/settings/settings.ini.php

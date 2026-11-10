@@ -169,6 +169,18 @@ class CSCacheAPC {
 
 class erLhcoreClassSystem{
 
+    // Declared explicitly: dynamic properties are deprecated since PHP 8.2.
+    public $Attributes;
+    public $BackupFilename;
+    public $EnvSeparator;
+    public $FileSeparator;
+    public $FileSystemType;
+    public $LineSeparator;
+    public $OS;
+    public $OSType;
+    public $ShellEscapeCharacter;
+    public $QueryString;
+
     protected $Params;
 
     public function __construct(){

@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['7.4', '8.1', '8.3']
+        php: ['8.2', '8.3']
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
@@ -42,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['7.4', '8.3']
+        php: ['8.2', '8.3']
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
@@ -102,14 +102,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          # composer.lock currently pins packages that do not declare PHP 8.2+ support.
-          php-version: '8.1'
+          php-version: '8.3'
           extensions: mysqli, pdo_mysql, gd, zip, bcmath, intl, mbstring
           coverage: none
       - uses: actions/cache@v4
         with:
           path: lhc_web/lib/vendor
-          key: vendor-8.1-${{ hashFiles('lhc_web/composer.lock') }}
+          key: vendor-8.3-${{ hashFiles('lhc_web/composer.lock') }}
       - name: Install application dependencies
         working-directory: lhc_web
         run: composer install --no-interaction --no-progress --prefer-dist --no-dev
@@ -143,7 +142,7 @@ jobs:
           INI
           php cli/install-cli.php ci-settings.ini
           test -f settings/settings.ini.php
-      - name: Login page, brute-force throttle and successful login
+      - name: Login page, brute-force throttle, health probe and successful login
         working-directory: lhc_web
         run: bash ../.github/scripts/smoke-login.sh http://127.0.0.1:8080 admin 'CiSmokeTest!123'
 

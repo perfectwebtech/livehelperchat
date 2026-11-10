@@ -68,6 +68,7 @@
  * @version 1.1
  * @mainclass
  */
+#[\AllowDynamicProperties]
 class ezcAuthenticationDatabaseCredentialFilter extends ezcAuthenticationFilter implements ezcAuthenticationDataFetch
 {
     /**

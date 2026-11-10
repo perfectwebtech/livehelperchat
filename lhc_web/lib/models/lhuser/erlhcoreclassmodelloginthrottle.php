@@ -8,6 +8,7 @@
  * the identifier is locked until `locked_until`. Consecutive locks grow
  * exponentially (see erLhcoreClassLoginThrottle).
  */
+#[\AllowDynamicProperties]
 class erLhcoreClassModelLoginThrottle {
 
     use erLhcoreClassDBTrait;

@@ -42,6 +42,10 @@ post_login() { # $1 = password, prints response body
 echo "1. login page renders"
 curl -sf -c "$JAR" "$BASE_URL/index.php/site_admin/user/login" | grep 'name="csfr_token"' > /dev/null || fail "login page did not render a login form"
 
+echo "1b. health probe answers 200 without details, details only with a login"
+curl -sf "$BASE_URL/index.php/system/health" | grep '"status":"ok"' > /dev/null || fail "health probe is not ok"
+curl -s "$BASE_URL/index.php/system/health" | grep -v '"checks"' > /dev/null || fail "anonymous health probe must not expose check details"
+
 echo "2. wrong passwords trigger the throttle"
 for i in 1 2 3 4; do
   post_login "wrong-$i" | grep 'Incorrect username or password' > /dev/null || fail "attempt $i: expected 'Incorrect username or password'"
@@ -76,5 +80,8 @@ LOCK_ID=$(echo "$PAGE" | grep -o 'name="UnlockThrottle" value="[0-9]*"' | head -
 TOKEN=$(echo "$PAGE" | grep -o 'name="csfr_token" value="[^"]*"' | head -1 | sed 's/.*value="//; s/"$//')
 curl -s -b "$JAR" -c "$JAR" -X POST "$BASE_URL/index.php/site_admin/user/passwordrequirements" \
   --data-urlencode "UnlockThrottle=$LOCK_ID" --data-urlencode "csfr_token=$TOKEN" | grep 'Lock removed' > /dev/null || fail "unlock action did not confirm"
+
+echo "6. health probe shows check details to a logged-in operator"
+curl -s -b "$JAR" "$BASE_URL/index.php/system/health" | grep '"database":{"status":"ok"' > /dev/null || fail "logged-in health probe is missing check details"
 
 echo "smoke test passed"

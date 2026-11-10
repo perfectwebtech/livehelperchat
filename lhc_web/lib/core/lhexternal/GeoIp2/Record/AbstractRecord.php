@@ -2,6 +2,7 @@
 
 namespace GeoIp2\Record;
 
+#[\AllowDynamicProperties]
 abstract class AbstractRecord implements \JsonSerializable
 {
     private $record;

@@ -67,6 +67,14 @@ tools/vendor/bin/phpunit
 tools/vendor/bin/phpstan analyse
 ```
 
+### Requirements and Docker image
+
+PHP 8.2 or newer is required (`lhc_web/composer.lock` is resolved for PHP 8.3). The root `Dockerfile` builds a production image on `php:8.3-apache` with the Composer dependencies installed in a build stage, opcache enabled and a container `HEALTHCHECK` on the health endpoint below.
+
+### Health endpoint
+
+`GET /index.php/system/health` returns HTTP 200 and `{"status":"ok"}` when the database answers and the writable directories are writable, otherwise HTTP 503 and `{"status":"fail"}`. It is safe to expose to load balancers and uptime monitors: it carries no versions, paths or hostnames. Per-check details (database latency, directory status, cache backend) are included for a logged-in operator, or when `?token=` matches the `health_token` value in `settings/settings.ini.php`.
+
 ### Brute-force protection for operator logins
 
 Failed logins (web and REST API) are counted per IP address and per username. When a limit is reached inside the time window further attempts are rejected for the lock duration; every consecutive lock doubles the duration up to a maximum. Locks expire on their own and never disable the account, unlike the older "maximum number of failed logins" option. Limits, durations and active locks (with an unlock button) are managed under *System configuration -> Password requirements*. Defaults: 20 attempts per IP, 5 per username, 15 minute window, 15 minute first lock, 24 hour maximum lock. Expired records are pruned by the `cron/login_monitoring` cron job.
