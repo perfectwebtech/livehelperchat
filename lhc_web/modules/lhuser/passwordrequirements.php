@@ -36,6 +36,24 @@ if ( isset($_POST['StorePasswordSettings']) ) {
         ),
         'generate_manually' => new ezcInputFormDefinitionElement(
             ezcInputFormDefinitionElement::OPTIONAL, 'boolean'
+        ),
+        'throttle_enabled' => new ezcInputFormDefinitionElement(
+            ezcInputFormDefinitionElement::OPTIONAL, 'boolean'
+        ),
+        'throttle_ip_attempts' => new ezcInputFormDefinitionElement(
+            ezcInputFormDefinitionElement::OPTIONAL, 'int', array('min_range' => 0)
+        ),
+        'throttle_user_attempts' => new ezcInputFormDefinitionElement(
+            ezcInputFormDefinitionElement::OPTIONAL, 'int', array('min_range' => 0)
+        ),
+        'throttle_window' => new ezcInputFormDefinitionElement(
+            ezcInputFormDefinitionElement::OPTIONAL, 'int', array('min_range' => 1)
+        ),
+        'throttle_lock' => new ezcInputFormDefinitionElement(
+            ezcInputFormDefinitionElement::OPTIONAL, 'int', array('min_range' => 1)
+        ),
+        'throttle_lock_max' => new ezcInputFormDefinitionElement(
+            ezcInputFormDefinitionElement::OPTIONAL, 'int', array('min_range' => 1)
         )
     );
 
@@ -109,6 +127,16 @@ if ( isset($_POST['StorePasswordSettings']) ) {
         $data['special_required'] = 0;
     }
 
+    $data['throttle_enabled'] = ($form->hasValidData('throttle_enabled') && $form->throttle_enabled == true) ? 1 : 0;
+
+    foreach (array('throttle_ip_attempts', 'throttle_user_attempts', 'throttle_window', 'throttle_lock', 'throttle_lock_max') as $throttleKey) {
+        if ($form->hasValidData($throttleKey)) {
+            $data[$throttleKey] = $form->$throttleKey;
+        } else {
+            $data[$throttleKey] = erLhcoreClassLoginThrottle::$defaults[$throttleKey];
+        }
+    }
+
     $pswData->value = serialize($data);
     $pswData->saveThis();
 
@@ -118,7 +146,19 @@ if ( isset($_POST['StorePasswordSettings']) ) {
     $tpl->set('updated','done');
 }
 
-$tpl->set('password_data',$data);
+if (isset($_POST['UnlockThrottle'])) {
+    if (!isset($_POST['csfr_token']) || !$currentUser->validateCSFRToken($_POST['csfr_token'])) {
+        erLhcoreClassModule::redirect('user/passwordrequirements');
+        exit;
+    }
+
+    erLhcoreClassLoginThrottle::unlock((int)$_POST['UnlockThrottle']);
+    $tpl->set('updated', 'unlocked');
+}
+
+$tpl->set('password_data', $data);
+$tpl->set('throttle_settings', erLhcoreClassLoginThrottle::normalizeSettings($data));
+$tpl->set('throttle_locks', erLhcoreClassModelLoginThrottle::getList(array('filtergt' => array('locked_until' => time()), 'sort' => 'locked_until DESC', 'limit' => 200)));
 
 $Result['content'] = $tpl->fetch();
 $Result['path'] = array(array('url' => erLhcoreClassDesign::baseurl('system/configuration'),'title' => erTranslationClassLhTranslation::getInstance()->getTranslation('system/htmlcode','System configuration')), array('title' => erTranslationClassLhTranslation::getInstance()->getTranslation('users/autologin','Password requirements')));

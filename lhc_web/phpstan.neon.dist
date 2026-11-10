@@ -1,0 +1,22 @@
+# Static analysis configuration. Run from lhc_web/:
+#   composer install -d tools
+#   tools/vendor/bin/phpstan analyse
+#
+# The code base predates static analysis, so only the paths listed below are
+# analysed. Every new feature should add its files here; widen the list (and
+# generate a baseline with `--generate-baseline`) as legacy code is cleaned up.
+parameters:
+    level: 5
+    tmpDir: cache/phpstan
+    bootstrapFiles:
+        - tools/phpstan-bootstrap.php
+    paths:
+        - lib/core/lhuser/lhloginthrottle.php
+        - lib/models/lhuser/erlhcoreclassmodelloginthrottle.php
+        - modules/lhcron/login_monitoring.php
+        - tests
+    scanDirectories:
+        - lib/core
+        - lib/models
+    reportUnmatchedIgnoredErrors: false
+    treatPhpDocTypesAsCertain: false

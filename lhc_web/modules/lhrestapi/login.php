@@ -8,8 +8,23 @@ $currentUser = erLhcoreClassUser::instance();
 
 try {
 
-    if ($currentUser->authenticate($_POST['username'], $_POST['password']))
+    $throttleIp = erLhcoreClassIPDetect::getIP();
+    $throttleUsername = isset($_POST['username']) ? $_POST['username'] : '';
+    $throttleRetryAfter = erLhcoreClassLoginThrottle::getRetryAfter($throttleIp, $throttleUsername);
+
+    if ($throttleRetryAfter > 0) {
+        http_response_code(429);
+        header('Retry-After: ' . $throttleRetryAfter);
+        echo json_encode(
+            array('error' => true, 'msg' => erLhcoreClassLoginThrottle::getLockedMessage($throttleRetryAfter), 'retry_after' => $throttleRetryAfter)
+        );
+        exit;
+    }
+
+    if ($currentUser->authenticate($throttleUsername, isset($_POST['password']) ? $_POST['password'] : ''))
     {
+        erLhcoreClassLoginThrottle::recordSuccess($throttleIp, $throttleUsername);
+
         $sessionToken = null;
         $userId = null;
 
@@ -63,7 +78,8 @@ try {
             
     } else {
         
-        if (($userAttempt = erLhcoreClassModelUser::findOne(array('filter' => array('username' => $_POST['Username'])))) instanceof erLhcoreClassModelUser) {
+        // Note: the form field is `username` (lower case); the previous `Username` lookup never matched, so failed API logins were never recorded.
+        if (($userAttempt = erLhcoreClassModelUser::findOne(array('filter' => array('username' => $throttleUsername)))) instanceof erLhcoreClassModelUser) {
             erLhcoreClassModelUserLogin::logUserAction(array(
                 'type' => erLhcoreClassModelUserLogin::TYPE_LOGIN_ATTEMPT,
                 'user_id' => $userAttempt->id,
@@ -71,6 +87,17 @@ try {
             ));
 
             erLhcoreClassModelUserLogin::disableIfRequired($userAttempt);
+        }
+
+        $throttleLockedFor = erLhcoreClassLoginThrottle::recordFailure($throttleIp, $throttleUsername);
+
+        if ($throttleLockedFor > 0) {
+            http_response_code(429);
+            header('Retry-After: ' . $throttleLockedFor);
+            echo json_encode(
+                array('error' => true, 'msg' => erLhcoreClassLoginThrottle::getLockedMessage($throttleLockedFor), 'retry_after' => $throttleLockedFor)
+            );
+            exit;
         }
 
         http_response_code(400);

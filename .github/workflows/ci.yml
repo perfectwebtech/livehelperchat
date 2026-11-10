@@ -1,0 +1,161 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: PHP syntax (${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.1', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: php -l on every application file
+        working-directory: lhc_web
+        run: |
+          set -o pipefail
+          find . -name '*.php' \
+            -not -path './lib/vendor/*' -not -path './tools/vendor/*' \
+            -not -path './cache/*' -not -path './ezcomponents/*' -not -path './node_modules/*' \
+            -print0 \
+          | xargs -0 -P 4 -I{} sh -c 'php -l "{}" > /dev/null 2>&1 || { echo "::error file={}::syntax error"; php -l "{}"; exit 1; }'
+
+  unit-tests:
+    name: Unit tests (${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - uses: actions/cache@v4
+        with:
+          path: lhc_web/tools/vendor
+          key: tools-${{ matrix.php }}-${{ hashFiles('lhc_web/tools/composer.json') }}
+      - name: Install dev tooling
+        working-directory: lhc_web/tools
+        run: composer install --no-interaction --no-progress --prefer-dist
+      - name: PHPUnit
+        working-directory: lhc_web
+        run: tools/vendor/bin/phpunit --no-coverage
+
+  static-analysis:
+    name: PHPStan (advisory)
+    runs-on: ubuntu-latest
+    # Advisory until a first green run is confirmed on GitHub-hosted runners;
+    # flip to blocking by removing continue-on-error.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - uses: actions/cache@v4
+        with:
+          path: lhc_web/tools/vendor
+          key: tools-8.3-${{ hashFiles('lhc_web/tools/composer.json') }}
+      - name: Install dev tooling
+        working-directory: lhc_web/tools
+        run: composer install --no-interaction --no-progress --prefer-dist
+      - name: PHPStan
+        working-directory: lhc_web
+        run: tools/vendor/bin/phpstan analyse --no-progress --memory-limit=1G --error-format=github
+
+  smoke-install:
+    name: Install + login smoke test
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: lhc
+          MARIADB_USER: lhc
+          MARIADB_PASSWORD: lhcpass
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          # composer.lock currently pins packages that do not declare PHP 8.2+ support.
+          php-version: '8.1'
+          extensions: mysqli, pdo_mysql, gd, zip, bcmath, intl, mbstring
+          coverage: none
+      - uses: actions/cache@v4
+        with:
+          path: lhc_web/lib/vendor
+          key: vendor-8.1-${{ hashFiles('lhc_web/composer.lock') }}
+      - name: Install application dependencies
+        working-directory: lhc_web
+        run: composer install --no-interaction --no-progress --prefer-dist --no-dev
+      - name: Install Live Helper Chat through the CLI installer
+        working-directory: lhc_web
+        run: |
+          cat > ci-settings.ini <<'INI'
+          [db]
+          host = 127.0.0.1
+          user = lhc
+          password = lhcpass
+          database = lhc
+          port = 3306
+
+          [admin]
+          AdminUsername = admin
+          AdminPassword = "CiSmokeTest!123"
+          AdminEmail = admin@example.com
+          AdminName = CI
+          AdminSurname = Admin
+          Domain = localhost
+          DefaultDepartament = Support
+          ForceVirtualHost = 0
+          Extensions =
+          ApacheUserGroupName = runner
+          ApacheUserName = runner
+          TimeZone = UTC
+          WebhooksEnabled = 0
+          WebhooksWorker = http
+          DefaultConfigs = []
+          INI
+          php cli/install-cli.php ci-settings.ini
+          test -f settings/settings.ini.php
+      - name: Login page, brute-force throttle and successful login
+        working-directory: lhc_web
+        run: bash ../.github/scripts/smoke-login.sh http://127.0.0.1:8080 admin 'CiSmokeTest!123'
+
+  docker-image:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

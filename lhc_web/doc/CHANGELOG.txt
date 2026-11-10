@@ -1,3 +1,12 @@
+4.18v
+
+1. Brute-force protection for operator logins: per IP and per username throttling with escalating, self-expiring locks (web login and REST API login). Configurable under Password requirements, where active locks can be released.
+2. Fix: failed REST API logins were never recorded against the account because of a wrong form field name.
+3. PHP 8 compatibility: bundled PHPExcel no longer uses the removed curly-brace string offset syntax.
+4. Continuous integration: syntax check, PHPUnit, PHPStan, Docker build and an install + login smoke test on every push.
+
+execute doc/update_db/update_290.sql for update
+
 4.17v
 
 1. Advanced chat auto assignment options.

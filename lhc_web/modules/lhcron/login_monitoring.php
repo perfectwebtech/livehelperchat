@@ -67,3 +67,7 @@ if (isset($passwordData['logout_after']) && is_numeric($passwordData['logout_aft
 
     echo $stmt->rowCount()," operators were forced to logout\n";
 }
+// Remove expired login throttle records (brute-force protection bookkeeping)
+if (erLhcoreClassLoginThrottle::isEnabled()) {
+    echo erLhcoreClassLoginThrottle::prune(), " expired login throttle records were removed\n";
+}

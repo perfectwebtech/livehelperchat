@@ -48,6 +48,29 @@ http://livehelperchat.com/demo-12c.html
  * [CloudTalk integration](https://doc.livehelperchat.com/docs/integrating/cloudtalk/) 
  * [Chat API integration](https://doc.livehelperchat.com/docs/integrating/chat-api-com/) 
 
+## Development tooling and CI
+
+Every push and pull request runs `.github/workflows/ci.yml`:
+
+ * **PHP syntax** - `php -l` over the whole application on PHP 7.4, 8.1 and 8.3.
+ * **Unit tests** - PHPUnit (`lhc_web/tests`, config in `lhc_web/phpunit.xml.dist`).
+ * **PHPStan** - static analysis of the paths listed in `lhc_web/phpstan.neon.dist` (advisory until the first green run).
+ * **Install + login smoke test** - installs a fresh copy through `cli/install-cli.php` against MariaDB, then exercises the login page, the brute-force throttle, the REST API login and the admin settings page (`.github/scripts/smoke-login.sh`).
+ * **Docker image** - the root `Dockerfile` must build.
+
+Developer tools live in `lhc_web/tools/composer.json` so the application's own `composer.json`/`composer.lock` stay untouched:
+
+```
+cd lhc_web
+composer install -d tools
+tools/vendor/bin/phpunit
+tools/vendor/bin/phpstan analyse
+```
+
+### Brute-force protection for operator logins
+
+Failed logins (web and REST API) are counted per IP address and per username. When a limit is reached inside the time window further attempts are rejected for the lock duration; every consecutive lock doubles the duration up to a maximum. Locks expire on their own and never disable the account, unlike the older "maximum number of failed logins" option. Limits, durations and active locks (with an unlock button) are managed under *System configuration -> Password requirements*. Defaults: 20 attempts per IP, 5 per username, 15 minute window, 15 minute first lock, 24 hour maximum lock. Expired records are pruned by the `cron/login_monitoring` cron job.
+
 ## Quick development guide
  * After app is installed disable cache and enable debug output. 
    * https://github.com/LiveHelperChat/livehelperchat/blob/master/lhc_web/settings/settings.ini.default.php#L13-L16
