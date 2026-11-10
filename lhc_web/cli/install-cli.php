@@ -88,7 +88,9 @@ function main($ini_file) {
         $install->print_errors($response);
     }
 
-    exit(1);
+    // print_errors() already exits with a non-zero status on any failure,
+    // so reaching this point means the installation succeeded.
+    exit(0);
 }
 
 if (validate_args($argv, $argc)) {

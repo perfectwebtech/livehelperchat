@@ -1,6 +1,11 @@
 <?php
 
-class erLhcoreClassLhMemcache extends Memcache
+/**
+ * Thin wrapper around the memcache extension. It deliberately does not extend
+ * Memcache: the extension's method signatures changed in PHP 8 and a subclass
+ * with the old signatures fails to compile wherever the extension is loaded.
+ */
+class erLhcoreClassLhMemcache
 {
     private $memcache;
     

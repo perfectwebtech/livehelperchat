@@ -20,3 +20,6 @@ parameters:
         - lib/models
     reportUnmatchedIgnoredErrors: false
     treatPhpDocTypesAsCertain: false
+    ignoreErrors:
+        # ezcQueryUpdate::set() is documented as string but the whole code base passes ints; harmless at runtime.
+        - '#Parameter \#2 \$expression of method ezcQueryUpdate::set\(\) expects string, int given#'

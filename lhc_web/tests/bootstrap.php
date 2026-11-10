@@ -16,4 +16,6 @@ chdir(__DIR__ . '/..');
 require_once 'ezcomponents/Base/src/base.php';
 
 ezcBase::addClassRepository('./', './lib/autoloads');
-spl_autoload_register(array('ezcBase', 'autoload'), true, false);
+spl_autoload_register(static function ($className) {
+    ezcBase::autoload($className);
+}, true, false);

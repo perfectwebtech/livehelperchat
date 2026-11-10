@@ -8,6 +8,8 @@
 6. New public health endpoint system/health for load balancers and monitoring.
 7. PHP 8.2/8.3 deprecation clean-up: dynamic property notices removed from the system class and all lazy-property models, deprecated FILTER_SANITIZE_STRING dropped from the CLI installer.
 8. Fix: chat/getnotificationsdata crashed with an empty id list; modules that stream output no longer trigger an undefined $Result warning.
+9. Fix: cli/install-cli.php exited with status 1 after a successful installation, breaking automated deployments.
+10. Fix: the Memcache wrapper class failed to compile on PHP 8 whenever the memcache extension was loaded.
 
 execute doc/update_db/update_290.sql for update
 

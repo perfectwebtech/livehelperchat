@@ -2240,7 +2240,7 @@ class Install
 
         return substr(decoct($perms), $cut);
     }
-    private function file_is_writable($directories, $preffix = '', &$Errors) {
+    private function file_is_writable($directories, $preffix, &$Errors) {
         foreach ($directories as $directory) {
             $error = false;
             syslog(LOG_DEBUG, "Evaluate $directory if writable");

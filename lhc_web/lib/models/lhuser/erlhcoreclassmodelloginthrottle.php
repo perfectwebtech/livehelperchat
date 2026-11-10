@@ -3,6 +3,11 @@
 /**
  * One row per throttled identifier (an IP address or a username).
  *
+ * @property-read string $type_front
+ * @property-read bool   $is_locked
+ * @property-read string $locked_until_front
+ * @property-read string $last_attempt_front
+ *
  * Rows are created on the first failed login and keep a rolling count of
  * failures inside the configured window. When the count reaches the limit
  * the identifier is locked until `locked_until`. Consecutive locks grow
