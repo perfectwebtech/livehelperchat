@@ -4,6 +4,7 @@
 FROM composer:2 AS vendor
 WORKDIR /app
 COPY lhc_web/composer.json lhc_web/composer.lock ./
+# composer.json sets vendor-dir to lib/vendor
 RUN composer install --no-dev --no-interaction --no-progress --prefer-dist \
         --no-scripts --ignore-platform-reqs --optimize-autoloader
 
@@ -32,7 +33,7 @@ RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
 RUN a2enmod headers rewrite
 
 COPY ./lhc_web /var/www/html
-COPY --from=vendor /app/vendor /var/www/html/lib/vendor
+COPY --from=vendor /app/lib/vendor /var/www/html/lib/vendor
 
 WORKDIR /var/www/html
 

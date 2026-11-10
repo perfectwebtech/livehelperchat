@@ -2,6 +2,8 @@
 
 class Install
 {
+
+    public $settings;
     function __construct($ini_file)
     {
         openlog("livehelperchat", LOG_PID | LOG_PERROR, LOG_LOCAL0);
