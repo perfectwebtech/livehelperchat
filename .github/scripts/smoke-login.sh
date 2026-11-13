@@ -84,4 +84,20 @@ curl -s -b "$JAR" -c "$JAR" -X POST "$BASE_URL/index.php/site_admin/user/passwor
 echo "6. health probe shows check details to a logged-in operator"
 curl -s -b "$JAR" "$BASE_URL/index.php/system/health" | grep '"database":{"status":"ok"' > /dev/null || fail "logged-in health probe is missing check details"
 
+echo "7. REST API keys honour scopes and expiry"
+mysql "${mysql_args[@]}" -e "DELETE FROM lh_abstract_rest_api_key; INSERT INTO lh_abstract_rest_api_key (api_key, user_id, active, ip_restrictions, scopes, expires_at, last_used) VALUES ('scopedkey000000000000000000000000000000', 1, 1, '', 'chats,chat', '', 0), ('expiredkey00000000000000000000000000000', 1, 1, '', '', '2000-01-01', 0), ('openkey000000000000000000000000000000000', 1, 1, '', '', '', 0)"
+api() { curl -s -o /dev/null -w '%{http_code}' -u "$USERNAME:$1" "$BASE_URL/index.php/restapi/$2"; }
+api_body() { curl -s -u "$USERNAME:$1" "$BASE_URL/index.php/restapi/$2"; }
+[ "$(api scopedkey000000000000000000000000000000 chats)" = "200" ] || fail "scoped key must reach an endpoint inside its scope"
+STATUS=$(api scopedkey000000000000000000000000000000 departments)
+[ "$STATUS" = "403" ] || fail "scoped key reached an endpoint outside its scope (HTTP $STATUS)"
+api_body scopedkey000000000000000000000000000000 departments | grep 'not allowed to call this endpoint' > /dev/null || fail "scope denial message missing"
+STATUS=$(api expiredkey00000000000000000000000000000 chats)
+[ "$STATUS" = "401" ] || fail "expired key was accepted (HTTP $STATUS)"
+[ "$(api openkey000000000000000000000000000000000 departments)" = "200" ] || fail "unscoped, unexpired key must work everywhere"
+LAST_USED=$(mysql "${mysql_args[@]}" -N -e "SELECT last_used FROM lh_abstract_rest_api_key WHERE api_key='openkey000000000000000000000000000000000'")
+[ "$LAST_USED" -gt 0 ] || fail "last_used was not recorded for an accepted key"
+DENIALS=$(mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_audits WHERE category='ApiKey'")
+[ "$DENIALS" -ge 2 ] || fail "API key denials were not written to the audit log (found $DENIALS)"
+
 echo "smoke test passed"

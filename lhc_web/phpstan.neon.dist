@@ -13,6 +13,9 @@ parameters:
     paths:
         - lib/core/lhuser/lhloginthrottle.php
         - lib/models/lhuser/erlhcoreclassmodelloginthrottle.php
+        - lib/models/lhabstract/erlhabstractmodelrestapikey.php
+        - lib/core/lhcore/lhaudittrail.php
+        - modules/lhsystem/health.php
         - modules/lhcron/login_monitoring.php
         - tests
     scanDirectories:

@@ -10,8 +10,11 @@
 8. Fix: chat/getnotificationsdata crashed with an empty id list; modules that stream output no longer trigger an undefined $Result warning.
 9. Fix: cli/install-cli.php exited with status 1 after a successful installation, breaking automated deployments.
 10. Fix: the Memcache wrapper class failed to compile on PHP 8 whenever the memcache extension was loaded.
+11. REST API keys can be scoped to endpoints and given an expiry date; last use is recorded. Expired keys get HTTP 401, out-of-scope calls HTTP 403.
+12. Security audit trail: chat deletions, chat exports, role changes, password policy changes, login lockouts/unlocks and rejected API key calls are always logged with actor and IP.
+13. Public health endpoint system/health.
 
-execute doc/update_db/update_290.sql for update
+execute doc/update_db/update_290.sql and doc/update_db/update_291.sql for update
 
 4.17v
 

@@ -46,10 +46,10 @@ try {
 } catch (Exception $e) {
     
     if ($modeAPI == false) {
-        http_response_code(400);
+        if (http_response_code() === 200) { http_response_code(400); } // keep 401/403 set by the validator
         die($e->getMessage());
     } else {
-        http_response_code(400);
+        if (http_response_code() === 200) { http_response_code(400); } // keep 401/403 set by the validator
         echo json_encode(
             array('error' => true, 'msg' => $e->getMessage())
         );

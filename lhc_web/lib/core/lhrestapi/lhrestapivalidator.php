@@ -177,6 +177,20 @@ class erLhcoreClassRestAPIHandler
                     throw new Exception(erTranslationClassLhTranslation::getInstance()->getTranslation('lhrestapi/validation', 'Rest API IP restrictions applies! '). erLhcoreClassIPDetect::getIP());
                 }
 
+                if ($apiKey->is_expired) {
+                    erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_API_KEY, 'denied_expired', array('api_key_id' => (int)$apiKey->id, 'user_id' => (int)$apiKey->user_id, 'view' => erLhcoreClassModule::getCurrentView()), $apiKey->id);
+                    http_response_code(401);
+                    throw new Exception(erTranslationClassLhTranslation::getInstance()->getTranslation('lhrestapi/validation', 'API key has expired!'));
+                }
+
+                if (!$apiKey->allowsView(erLhcoreClassModule::getCurrentView())) {
+                    erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_API_KEY, 'denied_scope', array('api_key_id' => (int)$apiKey->id, 'user_id' => (int)$apiKey->user_id, 'view' => erLhcoreClassModule::getCurrentView()), $apiKey->id);
+                    http_response_code(403);
+                    throw new Exception(erTranslationClassLhTranslation::getInstance()->getTranslation('lhrestapi/validation', 'API key is not allowed to call this endpoint!'));
+                }
+
+                $apiKey->touchLastUsed();
+
                 // API Key
                 self::$apiKey = $apiKey;
             }

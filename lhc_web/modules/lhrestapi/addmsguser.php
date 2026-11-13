@@ -56,7 +56,7 @@ if ($form->hasValidData( 'msg' ) && trim($form->msg) != '' && trim(str_replace('
             if (!isset($msg)){
                 $error = true;
                 $r = erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat','Please enter a message, max characters').' - '.(int)erLhcoreClassModelChatConfig::fetch('max_message_length')->current_value;
-                http_response_code(400);
+                if (http_response_code() === 200) { http_response_code(400); } // keep 401/403 set by the validator
                 echo erLhcoreClassChat::safe_json_encode(array('error' => $error, 'r' => $r));
                 exit;
             }
@@ -100,13 +100,13 @@ if ($form->hasValidData( 'msg' ) && trim($form->msg) != '' && trim(str_replace('
 
     } catch (Exception $e) {
         $db->rollback();
-        http_response_code(400);
+        if (http_response_code() === 200) { http_response_code(400); } // keep 401/403 set by the validator
         echo erLhcoreClassChat::safe_json_encode(array('error' => true, 'r' => $e->getMessage()));
         exit;
     }
 
 } else {
-    http_response_code(400);
+    if (http_response_code() === 200) { http_response_code(400); } // keep 401/403 set by the validator
     $r = erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat','Please enter a message, max characters').' - '.(int)erLhcoreClassModelChatConfig::fetch('max_message_length')->current_value;
     echo erLhcoreClassChat::safe_json_encode(array('error' => true, 'r' => $r));
     exit;

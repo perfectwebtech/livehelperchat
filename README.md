@@ -75,6 +75,14 @@ PHP 8.2 or newer is required (`lhc_web/composer.lock` is resolved for PHP 8.3). 
 
 `GET /index.php/system/health` returns HTTP 200 and `{"status":"ok"}` when the database answers and the writable directories are writable, otherwise HTTP 503 and `{"status":"fail"}`. It is safe to expose to load balancers and uptime monitors: it carries no versions, paths or hostnames. Per-check details (database latency, directory status, cache backend) are included for a logged-in operator, or when `?token=` matches the `health_token` value in `settings/settings.ini.php`.
 
+### Scoped, expiring REST API keys
+
+REST API keys (Rest API -> API keys) can now be limited to a list of endpoints and given an expiry date. A key with no endpoints checked keeps full access, so existing keys behave as before. Expired keys get HTTP 401, out-of-scope calls get HTTP 403, both are written to the audit log, and every key records when it was last used so unused keys can be found and revoked.
+
+### Security audit trail
+
+Security-relevant actions are always written to the audit log (System configuration -> Audit log) with the acting operator, IP address and request: chat deletions, chat exports (XLS and the export API), role changes, password policy changes, login lockouts and unlocks, and rejected API key calls.
+
 ### Brute-force protection for operator logins
 
 Failed logins (web and REST API) are counted per IP address and per username. When a limit is reached inside the time window further attempts are rejected for the lock duration; every consecutive lock doubles the duration up to a maximum. Locks expire on their own and never disable the account, unlike the older "maximum number of failed logins" option. Limits, durations and active locks (with an unlock button) are managed under *System configuration -> Password requirements*. Defaults: 20 attempts per IP, 5 per username, 15 minute window, 15 minute first lock, 24 hour maximum lock. Expired records are pruned by the `cron/login_monitoring` cron job.

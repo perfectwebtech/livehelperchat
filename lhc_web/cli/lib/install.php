@@ -1999,6 +1999,9 @@ class Install
                     `user_id` int(11) NOT NULL DEFAULT '0',
                     `active` int(11) NOT NULL DEFAULT '0',
                     `ip_restrictions` varchar(250) NOT NULL,
+                    `scopes` varchar(2000) NOT NULL DEFAULT '',
+                    `expires_at` varchar(20) NOT NULL DEFAULT '',
+                    `last_used` bigint(20) NOT NULL DEFAULT 0,
                     PRIMARY KEY (`id`),
                     KEY `api_key` (`api_key`),
                     KEY `user_id` (`user_id`)

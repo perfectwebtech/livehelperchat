@@ -30,5 +30,29 @@ return array(
         'trans' => 'Active',
         'required' => false,
         'validation_definition' => new ezcInputFormDefinitionElement(ezcInputFormDefinitionElement::OPTIONAL, 'boolean')
+    ),
+    'expires_at' => array(
+        'type' => 'text',
+        'trans' => erTranslationClassLhTranslation::getInstance()->getTranslation('abstract/restapikey', 'Expires on (YYYY-MM-DD, leave empty for a key that never expires)'),
+        'trans_sub' => erTranslationClassLhTranslation::getInstance()->getTranslation('abstract/restapikey', 'The key stops working at the end of that day. Rotate keys regularly: create a new one, switch the integration, delete the old one.'),
+        'maxlength' => 10,
+        'required' => false,
+        'validation_definition' => new ezcInputFormDefinitionElement(ezcInputFormDefinitionElement::OPTIONAL, 'unsafe_raw')
+    ),
+    'scopes_list' => array(
+        'type' => 'checkbox_multi',
+        'trans' => erTranslationClassLhTranslation::getInstance()->getTranslation('abstract/restapikey', 'Allowed endpoints (none checked = every endpoint)'),
+        'required' => false,
+        'col_size' => 3,
+        'hidden' => true,
+        'source' => 'erLhAbstractModelRestAPIKey::getScopeOptions',
+        'params_call' => array(),
+        'name_attr' => 'name',
+        'validation_definition' => new ezcInputFormDefinitionElement(ezcInputFormDefinitionElement::OPTIONAL, 'unsafe_raw', null, FILTER_REQUIRE_ARRAY)
+    ),
+    'last_used_front' => array(
+        'type' => 'text_display',
+        'trans' => erTranslationClassLhTranslation::getInstance()->getTranslation('abstract/restapikey', 'Last used'),
+        'required' => false
     )
 );
