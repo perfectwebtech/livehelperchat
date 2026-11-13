@@ -6,6 +6,13 @@
  *
  * @desc Rest API Key
  *
+ * @property string                  $left_menu
+ * @property erLhcoreClassModelUser|false $user
+ * @property string|null             $username
+ * @property string[]                $scopes_list
+ * @property bool                    $is_expired
+ * @property string                  $expires_at_front
+ * @property string                  $last_used_front
  */
 #[\AllowDynamicProperties]
 class erLhAbstractModelRestAPIKey
@@ -225,6 +232,7 @@ class erLhAbstractModelRestAPIKey
         $Module = array();
         include 'modules/lhrestapi/module.php';
 
+        /** @var array<string, array<string, mixed>> $ViewList */
         $options = array();
         foreach (array_keys($ViewList) as $view) {
             if (in_array($view, array('index', 'swagger', 'onlineimage'))) {

@@ -15,6 +15,7 @@ parameters:
         - lib/models/lhuser/erlhcoreclassmodelloginthrottle.php
         - lib/models/lhabstract/erlhabstractmodelrestapikey.php
         - lib/core/lhcore/lhaudittrail.php
+        - lib/core/lhsso/lhssooidc.php
         - modules/lhsystem/health.php
         - modules/lhcron/login_monitoring.php
         - tests
