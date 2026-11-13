@@ -6,7 +6,7 @@
 		<div class="col-md-3">
 		   <div class="form-group">
 			<label><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('chat/lists/search_panel','Username');?></label>
-			<input type="text" class="form-control form-control-sm" name="username" value="<?php echo htmlspecialchars($input->username)?>" />
+			<input type="text" class="form-control form-control-sm" name="username" value="<?php echo htmlspecialchars((string)$input->username)?>" />
 		   </div>
 		</div>
         <div class="col-md-3">
@@ -18,19 +18,19 @@
 		<div class="col-md-3">
 		  <div class="form-group">
 			<label><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('chat/lists/search_panel','E-mail');?></label>
-			<input type="text" class="form-control form-control-sm" name="email" value="<?php echo htmlspecialchars($input->email)?>" />
+			<input type="text" class="form-control form-control-sm" name="email" value="<?php echo htmlspecialchars((string)$input->email)?>" />
 		  </div>
 		</div>
 		<div class="col-md-3">
 		  <div class="form-group">
 			<label><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('chat/lists/search_panel','Name');?></label>
-			<input type="text" class="form-control form-control-sm" name="name" value="<?php echo htmlspecialchars($input->name)?>" />
+			<input type="text" class="form-control form-control-sm" name="name" value="<?php echo htmlspecialchars((string)$input->name)?>" />
 		  </div>
 		</div>
 		<div class="col-md-3">
 		  <div class="form-group">
 			<label><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('chat/lists/search_panel','Surname');?></label>
-			<input type="text" class="form-control form-control-sm" name="surname" value="<?php echo htmlspecialchars($input->surname)?>" />
+			<input type="text" class="form-control form-control-sm" name="surname" value="<?php echo htmlspecialchars((string)$input->surname)?>" />
 		  </div>
 		</div>
         <div class="col-md-3">
@@ -80,7 +80,7 @@
                         <label><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('chat/lists/search_panel','Login date range from');?></label>
                         <div class="row">
                             <div class="col-md-12">
-                                <input type="text" autocomplete="off" class="form-control form-control-sm" name="timefrom" id="id_timefrom" placeholder="E.g <?php echo date('Y-m-d',time()-7*24*3600)?>" value="<?php echo htmlspecialchars($input->timefrom)?>" />
+                                <input type="text" autocomplete="off" class="form-control form-control-sm" name="timefrom" id="id_timefrom" placeholder="E.g <?php echo date('Y-m-d',time()-7*24*3600)?>" value="<?php echo htmlspecialchars((string)$input->timefrom)?>" />
                             </div>
                         </div>
                     </div>
@@ -115,7 +115,7 @@
                         <label><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('chat/lists/search_panel','Login date range to');?></label>
                         <div class="row">
                             <div class="col-md-12">
-                                <input type="text" autocomplete="off" class="form-control form-control-sm" name="timeto" id="id_timeto" placeholder="E.g <?php echo date('Y-m-d')?>" value="<?php echo htmlspecialchars($input->timeto)?>" />
+                                <input type="text" autocomplete="off" class="form-control form-control-sm" name="timeto" id="id_timeto" placeholder="E.g <?php echo date('Y-m-d')?>" value="<?php echo htmlspecialchars((string)$input->timeto)?>" />
                             </div>
                         </div>
                     </div>

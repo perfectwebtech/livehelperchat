@@ -157,6 +157,7 @@ class erLhcoreClassLoginThrottle
         }
 
         if ($lockedFor > 0) {
+            erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_LOGIN_THROTTLE, 'lock', array('ip' => $ip, 'username' => self::normalizeUsername($username), 'locked_for' => $lockedFor));
             erLhcoreClassChatEventDispatcher::getInstance()->dispatch('user.login_throttled', array('ip' => $ip, 'username' => $username, 'locked_for' => $lockedFor));
         }
 

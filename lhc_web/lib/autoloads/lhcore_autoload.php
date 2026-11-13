@@ -45,6 +45,7 @@ return array_merge(array (
         'erLhcoreClassChatHelper' => 'lib/core/lhchat/lhchathelper.php',
         'erLhcoreClassUserValidator' => 'lib/core/lhuser/lhuservalidator.php',
         'erLhcoreClassLoginThrottle' => 'lib/core/lhuser/lhloginthrottle.php',
+        'erLhcoreClassAuditTrail' => 'lib/core/lhcore/lhaudittrail.php',
         'Clamav'                     => 'lib/core/lhexternal/Clamav.php',
 
         'erLhcoreClassBBCode'       => 'lib/core/lhbbcode/lhbbcode.php',

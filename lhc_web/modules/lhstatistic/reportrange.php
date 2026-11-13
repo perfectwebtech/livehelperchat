@@ -3,16 +3,16 @@
 $report = new LiveHelperChat\Models\Statistic\SavedReport();
 
 $report->params_array = ['input_form' => [
-    'timefrom_hours' => $_POST['timefrom_hours'],
-    'timefrom_minutes' => $_POST['timefrom_minutes'],
-    'timefrom_seconds' => $_POST['timefrom_seconds'],
-    'timeto_hours' => $_POST['timeto_hours'],
-    'timeto_minutes' => $_POST['timeto_minutes'],
-    'timeto_seconds' => $_POST['timeto_seconds'],
+    'timefrom_hours' => (isset($_POST['timefrom_hours']) ? $_POST['timefrom_hours'] : ''),
+    'timefrom_minutes' => (isset($_POST['timefrom_minutes']) ? $_POST['timefrom_minutes'] : ''),
+    'timefrom_seconds' => (isset($_POST['timefrom_seconds']) ? $_POST['timefrom_seconds'] : ''),
+    'timeto_hours' => (isset($_POST['timeto_hours']) ? $_POST['timeto_hours'] : ''),
+    'timeto_minutes' => (isset($_POST['timeto_minutes']) ? $_POST['timeto_minutes'] : ''),
+    'timeto_seconds' => (isset($_POST['timeto_seconds']) ? $_POST['timeto_seconds'] : ''),
 ]];
-$report->date_type = $_POST['date_type'];
-$report->days = $_POST['days'];
-$report->days_end = $_POST['days_end'];
+$report->date_type = (isset($_POST['date_type']) ? $_POST['date_type'] : '');
+$report->days = (isset($_POST['days']) ? $_POST['days'] : '');
+$report->days_end = (isset($_POST['days_end']) ? $_POST['days_end'] : '');
 
 $paramsFormatted = $report->getParamsURL();
 

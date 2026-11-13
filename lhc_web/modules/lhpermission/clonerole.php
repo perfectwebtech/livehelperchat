@@ -14,6 +14,8 @@ $role->id = null;
 $role->name = erTranslationClassLhTranslation::getInstance()->getTranslation('permission/roles','Copy of') . ' ' . $role->name;
 $role->saveThis();
 
+erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_ROLE, 'clone', array('role_id' => (int)$role->id, 'name' => $role->name, 'cloned_from' => (int)$Params['user_parameters']['role_id']), $role->id);
+
 // Role functions copy
 foreach ($roleFunctions as $roleFunction) {
     $roleFunction->id = null;

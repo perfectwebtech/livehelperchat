@@ -9,6 +9,8 @@ $role = erLhcoreClassRole::getSession()->load( 'erLhcoreClassModelRole', $Params
 
 if ($role->id != 1 && erLhcoreClassRole::canDeleteRole($role->id) === true) {
 	erLhcoreClassRole::getSession()->delete($role);
+
+	erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_ROLE, 'delete', array('role_id' => (int)$Params['user_parameters']['role_id'], 'name' => $role->name), $Params['user_parameters']['role_id']);
 	
 	// Delete user assigned departaments
 	$q = ezcDbInstance::get()->createDeleteQuery();

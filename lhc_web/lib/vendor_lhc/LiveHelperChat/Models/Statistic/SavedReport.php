@@ -2,6 +2,7 @@
 
 namespace LiveHelperChat\Models\Statistic;
 
+#[\AllowDynamicProperties]
 class SavedReport {
 
     use \erLhcoreClassDBTrait;

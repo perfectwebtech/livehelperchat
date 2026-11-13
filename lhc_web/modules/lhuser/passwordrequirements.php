@@ -140,6 +140,8 @@ if ( isset($_POST['StorePasswordSettings']) ) {
     $pswData->value = serialize($data);
     $pswData->saveThis();
 
+    erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_PASSWORD_POLICY, 'update', array('settings' => $data));
+
     $CacheManager = erConfigClassLhCacheConfig::getInstance();
     $CacheManager->expireCache();
 
@@ -152,6 +154,12 @@ if (isset($_POST['UnlockThrottle'])) {
         exit;
     }
 
+    $unlockRecord = erLhcoreClassModelLoginThrottle::fetch((int)$_POST['UnlockThrottle'], false);
+    erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_LOGIN_THROTTLE, 'unlock', array(
+        'throttle_id' => (int)$_POST['UnlockThrottle'],
+        'type' => $unlockRecord instanceof erLhcoreClassModelLoginThrottle ? ($unlockRecord->type == erLhcoreClassModelLoginThrottle::TYPE_IP ? 'ip' : 'username') : 'unknown',
+        'identifier' => $unlockRecord instanceof erLhcoreClassModelLoginThrottle ? $unlockRecord->identifier : '',
+    ));
     erLhcoreClassLoginThrottle::unlock((int)$_POST['UnlockThrottle']);
     $tpl->set('updated', 'unlocked');
 }

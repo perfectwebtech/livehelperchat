@@ -23,7 +23,7 @@
 
 /* eslint-disable max-len */
 
-const applicationServerPublicKey = '<?php echo htmlspecialchars($nsettings['public_key'])?>';
+const applicationServerPublicKey = '<?php echo htmlspecialchars(isset($nsettings['public_key']) ? (string)$nsettings['public_key'] : '')?>';
 
 /* eslint-enable max-len */
 

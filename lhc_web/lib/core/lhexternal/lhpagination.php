@@ -1,6 +1,12 @@
 <?php
 
 class lhPaginator {
+
+    // Declared explicitly: dynamic properties are deprecated since PHP 8.2.
+    public $end_range;
+    public $translationContext;
+    public $range;
+    public $start_range;
     
 	var $items_per_page;
 	var $items_total;

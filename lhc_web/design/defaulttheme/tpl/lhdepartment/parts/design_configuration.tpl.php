@@ -21,7 +21,7 @@
 
 <div class="form-group">
     <label><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('department/edit','Default theme applied per department');?></label>
-        <?php foreach (explode(',',$departament->bot_configuration_array['theme_default']) as $themeDefault) : if ((int)$themeDefault > 0) : ?>
+        <?php foreach (explode(',', isset($departament->bot_configuration_array['theme_default']) ? (string)$departament->bot_configuration_array['theme_default'] : '') as $themeDefault) : if ((int)$themeDefault > 0) : ?>
             <span class="badge bg-success ms-1"> <?php print htmlspecialchars(erLhAbstractModelWidgetTheme::fetch((int)$themeDefault)) ?></span>
         <?php endif; endforeach; ?>
     </b>
