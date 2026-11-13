@@ -1373,6 +1373,7 @@ class Install
                 ('ignore_user_status','0',0,'Ignore users online statuses and use departments online hours', '0'),
                 ('bbc_button_visible','1',0,'Show BB Code button', '0'),
                 ('password_data','','0','Password requirements','1'),
+                ('sso_oidc','','0','OpenID Connect single sign-on settings','1'),
                 ('activity_track_all','0','0','Track all logged operators activity and ignore their individual settings.','0'),
                 ('allow_reopen_closed','0', 0, 'Allow user to reopen closed chats?', '0'),
                 ('reopen_as_new','0', 0, 'Reopen closed chat as new? Otherwise it will be reopened as active.', '0'),

@@ -28,6 +28,10 @@
 		    <li><a href="<?php echo erLhcoreClassDesign::baseurl('user/import')?>"><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('system/configuration','Import users');?></a></li>
 		    <?php endif; ?>
 
+		    <?php if ($currentUser->hasAccessTo('lhsso','configure')) : ?>
+		    <li><a href="<?php echo erLhcoreClassDesign::baseurl('sso/configuration')?>"><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('system/configuration','Single sign-on (OpenID Connect)');?></a></li>
+		    <?php endif; ?>
+
 		    <?php if ($currentUser->hasAccessTo('lhuser','pswdsecurity')) : ?>
 		    <li><a href="<?php echo erLhcoreClassDesign::baseurl('user/passwordrequirements')?>"><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('system/configuration','Password requirements');?></a></li>
 		    <?php endif; ?>

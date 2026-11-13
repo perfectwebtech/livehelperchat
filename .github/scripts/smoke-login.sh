@@ -100,4 +100,29 @@ LAST_USED=$(mysql "${mysql_args[@]}" -N -e "SELECT last_used FROM lh_abstract_re
 DENIALS=$(mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_audits WHERE category='ApiKey'")
 [ "$DENIALS" -ge 2 ] || fail "API key denials were not written to the audit log (found $DENIALS)"
 
+echo "8. OpenID Connect single sign-on provisions and signs in an operator"
+MOCK_PORT=9400
+rm -f "${TMPDIR:-/tmp}/lhc-mock-oidc-key.pem" "${TMPDIR:-/tmp}/lhc-mock-oidc-codes.json"
+php -S "127.0.0.1:${MOCK_PORT}" "$(dirname "$0")/mock-oidc.php" > /dev/null 2>&1 &
+MOCK_PID=$!
+trap 'kill $SERVER_PID $MOCK_PID 2>/dev/null || true; echo "--- php -S log"; cat "$LOG"' EXIT
+for _ in $(seq 1 20); do curl -sf -o /dev/null "http://127.0.0.1:${MOCK_PORT}/.well-known/openid-configuration" && break; sleep 1; done
+SSO_SETTINGS=$(php -r 'echo serialize(array("enabled"=>1,"issuer"=>"http://127.0.0.1:9400","client_id"=>"lhc-smoke","client_secret"=>"smoke-secret","scopes"=>"openid profile email","auto_provision"=>1,"default_group_id"=>0,"groups_claim"=>"groups","group_map"=>"support-agents=1","sync_groups"=>1,"force_sso"=>0));')
+mysql "${mysql_args[@]}" -e "INSERT INTO lh_chat_config (\`identifier\`, \`value\`, \`type\`, \`explain\`, \`hidden\`) VALUES ('sso_oidc', '$SSO_SETTINGS', 0, 'OpenID Connect single sign-on settings', 1) ON DUPLICATE KEY UPDATE \`value\`='$SSO_SETTINGS'; DELETE FROM lh_users WHERE username='sso.user'"
+SSO_JAR="$(mktemp)"
+curl -s -c "$SSO_JAR" -b "$SSO_JAR" "$BASE_URL/index.php/site_admin/user/login" | grep 'sso/login' > /dev/null || fail "login page does not show the single sign-on button"
+# follow: sso/login -> provider /authorize -> sso/callback -> site_admin
+FINAL=$(curl -s -L -c "$SSO_JAR" -b "$SSO_JAR" -o /dev/null -w '%{url_effective}' "$BASE_URL/index.php/site_admin/sso/login")
+echo "   landed on $FINAL"
+curl -s -b "$SSO_JAR" "$BASE_URL/index.php/site_admin" | grep 'user/logout' > /dev/null || fail "SSO callback did not produce a logged-in session"
+PROVISIONED=$(mysql "${mysql_args[@]}" -N -e "SELECT CONCAT(username,'|',email,'|',name,'|',disabled) FROM lh_users WHERE username='sso.user'")
+[ "$PROVISIONED" = "sso.user|sso.user@example.com|Sso|0" ] || fail "operator was not provisioned from the ID token claims (got '$PROVISIONED')"
+IN_GROUP=$(mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_groupuser gu JOIN lh_users u ON u.id=gu.user_id WHERE u.username='sso.user' AND gu.group_id=1")
+[ "$IN_GROUP" = "1" ] || fail "group mapping support-agents=1 was not applied"
+SSO_AUDIT=$(mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_audits WHERE category='SingleSignOn'")
+[ "$SSO_AUDIT" -ge 1 ] || fail "SSO login was not written to the audit log"
+# a forged state must be rejected
+[ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/index.php/site_admin/sso/callback?code=x&state=forged")" = "302" ] || fail "callback with a forged state should redirect back to the login page"
+mysql "${mysql_args[@]}" -e "DELETE FROM lh_chat_config WHERE identifier='sso_oidc'"
+
 echo "smoke test passed"

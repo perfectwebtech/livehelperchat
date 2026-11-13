@@ -75,6 +75,12 @@ PHP 8.2 or newer is required (`lhc_web/composer.lock` is resolved for PHP 8.3). 
 
 `GET /index.php/system/health` returns HTTP 200 and `{"status":"ok"}` when the database answers and the writable directories are writable, otherwise HTTP 503 and `{"status":"fail"}`. It is safe to expose to load balancers and uptime monitors: it carries no versions, paths or hostnames. Per-check details (database latency, directory status, cache backend) are included for a logged-in operator, or when `?token=` matches the `health_token` value in `settings/settings.ini.php`.
 
+### Single sign-on (OpenID Connect)
+
+Operators can sign in through any OpenID Connect provider (Microsoft Entra ID, Okta, Keycloak, Google Workspace, Auth0, ...). Configure it under *System configuration -> Single sign-on*: register Live Helper Chat at the provider with the redirect URI shown on that page, then enter the issuer URL, client ID and client secret. Everything else comes from OIDC discovery. The login page gets a single sign-on button; the password form can be hidden (append `/(local)/1` to the login URL for a break-glass local login).
+
+Accounts are matched by username, then by e-mail, and can be created automatically on first sign-in with a default group. Provider groups map to Live Helper Chat groups (`provider-group=1,2`, one per line) and can be re-applied on every sign-in. Sign-ins and refusals are written to the audit log. The implementation uses the authorization code flow with PKCE and verifies RS256 ID tokens against the provider's JWKS without any third-party library. The CI smoke test runs the whole flow against a mock provider.
+
 ### Scoped, expiring REST API keys
 
 REST API keys (Rest API -> API keys) can now be limited to a list of endpoints and given an expiry date. A key with no endpoints checked keeps full access, so existing keys behave as before. Expired keys get HTTP 401, out-of-scope calls get HTTP 403, both are written to the audit log, and every key records when it was last used so unused keys can be found and revoked.

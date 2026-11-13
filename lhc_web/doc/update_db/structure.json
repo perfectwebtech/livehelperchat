@@ -8697,6 +8697,13 @@
     ],
     "lh_chat_config": [
       {
+        "identifier": "sso_oidc",
+        "value": "",
+        "type": "0",
+        "explain": "OpenID Connect single sign-on settings",
+        "hidden": "1"
+      },
+      {
         "identifier": "dashboard_order",
         "value": "[[\"online_operators\",\"departments_stats\",\"online_visitors\"],[\"pending_chats\",\"unread_chats\",\"transfered_chats\"],[\"active_chats\",\"closed_chats\"]]",
         "type": "0",

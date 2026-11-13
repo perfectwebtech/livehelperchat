@@ -13,6 +13,7 @@
 11. REST API keys can be scoped to endpoints and given an expiry date; last use is recorded. Expired keys get HTTP 401, out-of-scope calls HTTP 403.
 12. Security audit trail: chat deletions, chat exports, role changes, password policy changes, login lockouts/unlocks and rejected API key calls are always logged with actor and IP.
 13. Public health endpoint system/health.
+14. Single sign-on through any OpenID Connect provider (authorization code flow with PKCE, RS256 ID token verification): automatic account provisioning, group mapping, allowed e-mail domains, optional hiding of the password form. Configure under System configuration -> Single sign-on.
 
 execute doc/update_db/update_290.sql and doc/update_db/update_291.sql for update
 
