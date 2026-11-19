@@ -59,9 +59,11 @@ docker compose logs scheduler 2>&1 | grep -q 'ok   cron/workflow' || fail "sched
 if docker compose logs scheduler 2>&1 | grep -q 'FAIL '; then fail "a scheduled job failed"; fi
 
 echo "7. redeploy: recreate the web container, installation survives"
+# `docker compose logs` only covers the current container, so check first boot now.
+[ "$(docker compose logs web 2>&1 | grep -c 'install-from-env: installation complete')" = "1" ] || fail "first boot did not install exactly once"
 docker compose up -d --force-recreate --no-deps --wait --wait-timeout 180 web || fail "web did not come back after recreate"
 login || fail "admin login failed after recreate"
-docker compose logs web 2>&1 | grep -q 'installing from environment' || fail "first boot install log line missing"
-[ "$(docker compose logs web 2>&1 | grep -c 'installation complete')" = "1" ] || fail "installer ran more than once"
+if docker compose logs web 2>&1 | grep -q 'installing from environment'; then fail "recreated container tried to install again"; fi
+docker compose logs web 2>&1 | grep -q 'Database schema is up to date' || fail "recreated container did not check the schema"
 
 echo "compose stack smoke test passed"
