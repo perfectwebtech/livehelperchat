@@ -28,6 +28,14 @@
 		    <li><a href="<?php echo erLhcoreClassDesign::baseurl('user/import')?>"><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('system/configuration','Import users');?></a></li>
 		    <?php endif; ?>
 
+		    <?php if ($currentUser->hasAccessTo('lhgdpr','configure')) : ?>
+		    <li><a href="<?php echo erLhcoreClassDesign::baseurl('gdpr/configuration')?>"><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('system/configuration','Data retention (GDPR)');?></a></li>
+		    <?php endif; ?>
+
+		    <?php if ($currentUser->hasAccessTo('lhgdpr','subject_requests')) : ?>
+		    <li><a href="<?php echo erLhcoreClassDesign::baseurl('gdpr/subject')?>"><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('system/configuration','Data subject requests (export / erase)');?></a></li>
+		    <?php endif; ?>
+
 		    <?php if ($currentUser->hasAccessTo('lhsso','configure')) : ?>
 		    <li><a href="<?php echo erLhcoreClassDesign::baseurl('sso/configuration')?>"><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('system/configuration','Single sign-on (OpenID Connect)');?></a></li>
 		    <?php endif; ?>

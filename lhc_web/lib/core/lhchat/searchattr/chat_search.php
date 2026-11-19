@@ -478,7 +478,7 @@ $fieldsSearch['anonymized'] = array (
     'trans' => 'Anonymized',
     'required' => false,
     'valid_if_filled' => false,
-    'filter_type' => 'filter',
+    'filter_type' => 'filtergte', // 1 = messages anonymized, 2 = fully anonymized (erLhcoreClassGdpr)
     'filter_table_field' => 'anonymized',
     'validation_definition' => new ezcInputFormDefinitionElement (
         ezcInputFormDefinitionElement::OPTIONAL, 'boolean'

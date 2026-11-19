@@ -125,4 +125,21 @@ SSO_AUDIT=$(mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_audits WHERE
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/index.php/site_admin/sso/callback?code=x&state=forged")" = "302" ] || fail "callback with a forged state should redirect back to the login page"
 mysql "${mysql_args[@]}" -e "DELETE FROM lh_chat_config WHERE identifier='sso_oidc'"
 
+echo "9. data retention policy and data subject requests"
+IDS=$(php "$(dirname "$0")/gdpr-fixture.php" . 2>/dev/null | tail -1)
+id_of() { echo "$IDS" | php -r '$d = json_decode(stream_get_contents(STDIN), true); echo $d[$argv[1]];' "$1"; }
+RETENTION=$(php -r 'echo serialize(array("anonymize_after_days"=>30,"delete_after_days"=>365,"anonymize_operator_messages"=>0,"batch_size"=>500));')
+mysql "${mysql_args[@]}" -e "INSERT INTO lh_chat_config (\`identifier\`, \`value\`, \`type\`, \`explain\`, \`hidden\`) VALUES ('gdpr_retention', '$RETENTION', 0, 'Data retention and anonymisation policy', 1) ON DUPLICATE KEY UPDATE \`value\`='$RETENTION'"
+php cron.php -s site_admin -c cron/data_retention 2>/dev/null | grep '3 chats anonymised, 1 chats deleted' > /dev/null || fail "retention run did not anonymise 3 and delete 1 chat"
+ANON=$(mysql "${mysql_args[@]}" -N -e "SELECT CONCAT(anonymized,'|',nick,'|',email,'|',phone,'|',ip,'|',remarks,'|',additional_data) FROM lh_chat WHERE id=$(id_of anon)")
+[ "$ANON" = "2|Visitor|||||" ] || fail "chat was not fully anonymised: $ANON"
+[ "$(mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_msg WHERE chat_id=$(id_of anon) AND user_id=0 AND msg<>'[anonymized]'")" = "0" ] || fail "visitor messages were not blanked"
+[ "$(mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_chat_file WHERE chat_id=$(id_of anon)")" = "0" ] || fail "uploaded files were not deleted"
+[ "$(mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_chat WHERE id=$(id_of delete)")" = "0" ] || fail "expired chat was not deleted"
+[ "$(mysql "${mysql_args[@]}" -N -e "SELECT anonymized FROM lh_chat WHERE id=$(id_of active)")" = "0" ] || fail "an active chat was anonymised"
+[ "$(mysql "${mysql_args[@]}" -N -e "SELECT anonymized FROM lh_chat_archive_900 WHERE id=$(id_of archived_anon)")" = "2" ] || fail "archived chat was not anonymised"
+php cli/gdpr.php export 'Bob.Subject@example.com' 2>/dev/null | grep '"chat_count": 2' > /dev/null || fail "subject export did not find the live and archived chat"
+php cli/gdpr.php erase 'bob.subject@example.com' --yes 2>/dev/null | grep '2 chat(s) erased' > /dev/null || fail "subject erase did not delete 2 chats"
+[ "$(mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_audits WHERE category='DataProtection' AND message LIKE '%bob.subject%'")" = "0" ] || fail "the audit log stored the data subject's e-mail address"
+
 echo "smoke test passed"

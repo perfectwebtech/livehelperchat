@@ -8697,6 +8697,13 @@
     ],
     "lh_chat_config": [
       {
+        "identifier": "gdpr_retention",
+        "value": "",
+        "type": "0",
+        "explain": "Data retention and anonymisation policy",
+        "hidden": "1"
+      },
+      {
         "identifier": "sso_oidc",
         "value": "",
         "type": "0",

@@ -3,7 +3,8 @@
 # "scheduler" container (see docker-compose.yml). One process, no daemon.
 #
 #   every minute: workflow, department availability, login monitoring, transfers
-#   every hour:   message anonymisation (cron/encrypt) and chat archiving
+#   every hour:   message anonymisation (cron/encrypt), chat archiving and the
+#                 data retention policy (cron/data_retention)
 #
 # Each job runs as www-data so files it creates stay writable for Apache.
 # Extra jobs: LHC_SCHEDULER_MINUTE_JOBS / LHC_SCHEDULER_HOURLY_JOBS, space separated.
@@ -11,7 +12,7 @@ set -u
 cd "${LHC_APP_DIR:-/var/www/html}"
 
 MINUTE_JOBS="cron/workflow cron/departament-availability cron/login_monitoring cron/transfer_workflow ${LHC_SCHEDULER_MINUTE_JOBS:-}"
-HOURLY_JOBS="cron/encrypt cron/archive ${LHC_SCHEDULER_HOURLY_JOBS:-}"
+HOURLY_JOBS="cron/encrypt cron/archive cron/data_retention ${LHC_SCHEDULER_HOURLY_JOBS:-}"
 
 run() {
     start=$(date +%s)

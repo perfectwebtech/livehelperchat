@@ -22,6 +22,7 @@ class erLhcoreClassAuditTrail
     const CATEGORY_LOGIN_THROTTLE = 'LoginThrottle';
     const CATEGORY_API_KEY = 'ApiKey';
     const CATEGORY_SSO = 'SingleSignOn';
+    const CATEGORY_DATA_PROTECTION = 'DataProtection';
 
     /**
      * @param string $category one of the CATEGORY_* constants (shown in the audit log list)

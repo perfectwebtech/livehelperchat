@@ -16,6 +16,7 @@ parameters:
         - lib/models/lhabstract/erlhabstractmodelrestapikey.php
         - lib/core/lhcore/lhaudittrail.php
         - lib/core/lhsso/lhssooidc.php
+        - lib/core/lhgdpr/lhgdpr.php
         - modules/lhsystem/health.php
         - modules/lhcron/login_monitoring.php
         - tests

@@ -100,6 +100,24 @@ PHP 8.2 or newer is required (`lhc_web/composer.lock` is resolved for PHP 8.3). 
 
 `GET /index.php/system/health` returns HTTP 200 and `{"status":"ok"}` when the database answers and the writable directories are writable, otherwise HTTP 503 and `{"status":"fail"}`. It is safe to expose to load balancers and uptime monitors: it carries no versions, paths or hostnames. Per-check details (database latency, directory status, cache backend) are included for a logged-in operator, or when `?token=` matches the `health_token` value in `settings/settings.ini.php`.
 
+### Data retention and GDPR requests
+
+*System configuration -> Data retention (GDPR)* sets a retention policy that the hourly `cron/data_retention` job applies to closed chats, live and archived (the Docker scheduler runs it automatically):
+
+* **Anonymise after N days.** Blanks visitor messages and their form data; clears name, e-mail, phone, IP, user agent, referrers, chat variables, additional data, operator remarks, geo position and typing preview; deletes uploaded files and visitor tracking. Country and time zone stay for statistics. Operator messages can be blanked too.
+* **Delete after M days.** Removes the chat with its messages and files.
+
+*Data subject requests (export / erase)* finds every live and archived chat of a person by e-mail address or phone number (phone numbers match across formats). **Export** downloads a JSON file with their chats, messages and file names (right of access / portability). **Erase** permanently deletes them after the identifier is typed again (right to erasure). The same is scriptable for ticket automation:
+
+```
+php cli/gdpr.php find   jane@example.com
+php cli/gdpr.php export jane@example.com > jane.json
+php cli/gdpr.php erase  jane@example.com --yes
+php cli/gdpr.php retention
+```
+
+Every run, export and erasure is written to the audit log; for subject requests the log keeps a SHA-256 hash of the identifier, not the identifier itself. Permissions: `lhgdpr/configure` and `lhgdpr/subject_requests`.
+
 ### Single sign-on (OpenID Connect)
 
 Operators can sign in through any OpenID Connect provider (Microsoft Entra ID, Okta, Keycloak, Google Workspace, Auth0, ...). Configure it under *System configuration -> Single sign-on*: register Live Helper Chat at the provider with the redirect URI shown on that page, then enter the issuer URL, client ID and client secret. Everything else comes from OIDC discovery. The login page gets a single sign-on button; the password form can be hidden (append `/(local)/1` to the login URL for a break-glass local login).
