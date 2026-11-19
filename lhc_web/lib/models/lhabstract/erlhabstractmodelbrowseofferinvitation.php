@@ -1,5 +1,6 @@
 <?php
 
+#[\AllowDynamicProperties]
 class erLhAbstractModelBrowseOfferInvitation {
 
 	public function getState()

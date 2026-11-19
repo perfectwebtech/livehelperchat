@@ -1,0 +1,84 @@
+# Production-style stack: MariaDB, the web container and a job scheduler.
+#
+#   cp .env.example .env      # then set the passwords
+#   docker compose up -d --build
+#
+# Put a TLS-terminating reverse proxy (Caddy, nginx, Traefik, a cloud load
+# balancer) in front of the web port and set LHC_PROXY_MODE=1 so visitor IPs
+# are taken from X-Forwarded-For. Only do that when the proxy is trusted.
+
+x-lhc-env: &lhc-env
+  LHC_DB_HOST: db
+  LHC_DB_PORT: "3306"
+  LHC_DB_DATABASE: ${LHC_DB_DATABASE:-lhc}
+  LHC_DB_USER: ${LHC_DB_USER:-lhc}
+  LHC_DB_PASSWORD: ${LHC_DB_PASSWORD:?set LHC_DB_PASSWORD in .env}
+  LHC_SECRET_HASH: ${LHC_SECRET_HASH:?set LHC_SECRET_HASH in .env (64+ random characters)}
+  LHC_HEALTH_TOKEN: ${LHC_HEALTH_TOKEN:-}
+  LHC_METRICS_TOKEN: ${LHC_METRICS_TOKEN:-}
+  LHC_HSTS_MAX_AGE: ${LHC_HSTS_MAX_AGE:-0}
+  LHC_PROXY_MODE: ${LHC_PROXY_MODE:-0}
+  LHC_TRUSTED_HOST_PATTERNS: ${LHC_TRUSTED_HOST_PATTERNS:-}
+
+x-lhc-volumes: &lhc-volumes
+  - lhc-data:/data
+  - lhc-uploads:/var/www/html/var
+
+services:
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    environment:
+      MARIADB_DATABASE: ${LHC_DB_DATABASE:-lhc}
+      MARIADB_USER: ${LHC_DB_USER:-lhc}
+      MARIADB_PASSWORD: ${LHC_DB_PASSWORD:?set LHC_DB_PASSWORD in .env}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?set MARIADB_ROOT_PASSWORD in .env}
+    volumes:
+      - lhc-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  web:
+    build: .
+    image: ${LHC_IMAGE:-livehelperchat:local}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      <<: *lhc-env
+      LHC_ROLE: web
+      LHC_AUTO_MIGRATE: ${LHC_AUTO_MIGRATE:-1}
+      # First boot only: create the administrator from these values.
+      LHC_ADMIN_USERNAME: ${LHC_ADMIN_USERNAME:-admin}
+      LHC_ADMIN_PASSWORD: ${LHC_ADMIN_PASSWORD:-}
+      LHC_ADMIN_EMAIL: ${LHC_ADMIN_EMAIL:-admin@example.com}
+      LHC_DOMAIN: ${LHC_DOMAIN:-localhost}
+      LHC_DEFAULT_DEPARTMENT: ${LHC_DEFAULT_DEPARTMENT:-Support}
+      LHC_TIMEZONE: ${LHC_TIMEZONE:-UTC}
+    ports:
+      - "${LHC_HTTP_BIND:-127.0.0.1}:${LHC_HTTP_PORT:-8080}:80"
+    volumes: *lhc-volumes
+
+  scheduler:
+    image: ${LHC_IMAGE:-livehelperchat:local}
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_started
+    environment:
+      <<: *lhc-env
+      LHC_ROLE: scheduler
+    command: ["/opt/lhc/scheduler.sh"]
+    volumes: *lhc-volumes
+    healthcheck:
+      disable: true
+
+volumes:
+  lhc-db:
+  lhc-data:
+  lhc-uploads:

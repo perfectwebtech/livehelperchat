@@ -103,6 +103,7 @@ if (isset($Params['user_parameters_unordered']['export']) && $Params['user_param
         $ignoreFields = (new erLhcoreClassModelChat)->getState();
         unset($ignoreFields['id']);
         $ignoreFields = array_keys($ignoreFields);
+        erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_CHAT_EXPORT, 'xls', array('filter' => $filterParams['filter']));
         erLhcoreClassChatExport::chatListExportXLS(erLhcoreClassModelChat::getList(array_merge($filterParams['filter'], array('limit' => 100000, 'offset' => 0, 'ignore_fields' => $ignoreFields))), array('csv' => isset($_POST['CSV']), 'type' => (isset($_POST['exportOptions']) ? $_POST['exportOptions'] : [])));
         exit;
     } else {

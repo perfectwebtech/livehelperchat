@@ -9,11 +9,6 @@ $ViewList['configuration'] = array(
     'functions' => array( 'configuration' )
 );
 
-$ViewList['sessions'] = array(
-    'params' => array(),
-    'functions' => array( 'configuration' )
-);
-
 $ViewList['call'] = array(
     'params' => array('id','hash')
 );

@@ -17,6 +17,7 @@ try {
     {
         erLhcoreClassChatEventDispatcher::getInstance()->dispatch('chat.delete',array('chat' => & $chat, 'user' => $currentUser));
         $chat->removeThis();
+        erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_CHAT_DELETE, 'delete', array('chat_id' => (int)$chat->id, 'department_id' => (int)$chat->dep_id, 'nick' => $chat->nick), $chat->id);
         echo json_encode(array('error' => false, 'result' => 'ok' ));
     } else {
         echo json_encode(array('error' => true, 'result' => erTranslationClassLhTranslation::getInstance()->getTranslation('chat/deletechatadmin','You do not have rights to delete a chat') ));

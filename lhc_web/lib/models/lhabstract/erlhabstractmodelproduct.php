@@ -7,6 +7,7 @@
  *
  */
 
+#[\AllowDynamicProperties]
 class erLhAbstractModelProduct {
 
 	public function getState()

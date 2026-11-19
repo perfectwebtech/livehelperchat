@@ -1,5 +1,6 @@
 <?php
 
+#[\AllowDynamicProperties]
 class erLhcoreClassModelUser {
 
     use erLhcoreClassDBTrait;

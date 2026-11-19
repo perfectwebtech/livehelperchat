@@ -94,7 +94,15 @@ if (isset($_POST['Login']))
 
         $valid = true;
 
-        if (is_array($recaptchaData) && isset($recaptchaData['enabled']) && $recaptchaData['enabled'] == 1) {
+        // Brute-force protection: reject the attempt before any credential check if this IP or account is locked.
+        $throttleIp = erLhcoreClassIPDetect::getIP();
+        $throttleRetryAfter = erLhcoreClassLoginThrottle::getRetryAfter($throttleIp, isset($_POST['Username']) ? $_POST['Username'] : '');
+
+        if ($throttleRetryAfter > 0) {
+            $valid = false;
+        }
+
+        if ($valid == true && is_array($recaptchaData) && isset($recaptchaData['enabled']) && $recaptchaData['enabled'] == 1) {
            $params = [
                 'secret' 	=> $recaptchaData['secret_key'],
                 'response' 	=> $_POST['g-recaptcha']
@@ -121,7 +129,9 @@ if (isset($_POST['Login']))
 
         if ($valid == false || !$currentUser->authenticate($_POST['Username'], $_POST['Password'], isset($_POST['rememberMe']) && $_POST['rememberMe'] == 1 ? true : false))
         {
-            if ($valid == false) {
+            if ($throttleRetryAfter > 0) {
+                $Error = erLhcoreClassLoginThrottle::getLockedMessage($throttleRetryAfter);
+            } elseif ($valid == false) {
                 $Error = erTranslationClassLhTranslation::getInstance()->getTranslation('user/login','Google re-captcha validation failed');
             } else {
 
@@ -140,6 +150,13 @@ if (isset($_POST['Login']))
 
                     erLhcoreClassModelUserLogin::disableIfRequired($userAttempt);
                 }
+
+                // Count the failure against the IP and the username, whether or not the account exists.
+                $throttleLockedFor = erLhcoreClassLoginThrottle::recordFailure($throttleIp, $_POST['Username']);
+
+                if ($throttleLockedFor > 0) {
+                    $Error = erLhcoreClassLoginThrottle::getLockedMessage($throttleLockedFor);
+                }
             }
 
             $tpl->set('errors',array($Error));
@@ -149,7 +166,9 @@ if (isset($_POST['Login']))
             }
 
         } else {
-            
+
+            erLhcoreClassLoginThrottle::recordSuccess($throttleIp, $_POST['Username']);
+
             $response = erLhcoreClassChatEventDispatcher::getInstance()->dispatch('user.login_after_success_authenticate', array('current_user' => & $currentUser, 'tpl' => & $tpl));
             
             if ($response === false)

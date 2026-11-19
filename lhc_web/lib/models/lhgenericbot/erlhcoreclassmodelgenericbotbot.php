@@ -1,5 +1,6 @@
 <?php
 
+#[\AllowDynamicProperties]
 class erLhcoreClassModelGenericBotBot {
 
     use erLhcoreClassDBTrait;

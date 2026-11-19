@@ -97,7 +97,7 @@ HAVING
     echo json_encode($groupChat->getState());
 
 } catch (Exception $e) {
-    http_response_code(400);
+    if (http_response_code() === 200) { http_response_code(400); } // keep 401/403 set by the validator
     echo erLhcoreClassRestAPIHandler::outputResponse(array(
         'error' => true,
         'r' => $e->getMessage()

@@ -2,6 +2,7 @@
 
 namespace GeoIp2\Record;
 
+#[\AllowDynamicProperties]
 abstract class AbstractPlaceRecord extends AbstractRecord
 {
     private $locales;

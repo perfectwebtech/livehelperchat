@@ -56,11 +56,6 @@ $ViewList['deleteview'] = array(
     'functions' => array( 'use' )
 );
 
-$ViewList['view'] = array(
-    'params' => array(),
-    'functions' => array( 'configuration' )
-);
-
 $FunctionList['configuration'] = array('explain' => 'Allow operator to configure views');
 $FunctionList['use'] = array('explain' => 'Allow operator to use views');
 $FunctionList['use_chat'] = array('explain' => 'Allow operator to use views for chats');

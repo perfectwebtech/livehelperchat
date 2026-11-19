@@ -1,5 +1,6 @@
 <?php
 
+#[\AllowDynamicProperties]
 class erLhcoreClassModelChatOnlineUserFootprint {
 
    public function getState()

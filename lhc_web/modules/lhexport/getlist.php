@@ -13,6 +13,8 @@ try {
 
 	if ( sha1('getlist'.$hashSecret) == $hash ) {
 
+		erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_CHAT_EXPORT, 'api_list', array('format' => $format, 'params' => $Params['user_parameters_unordered']));
+
 		$filter = array();
 
 		if (is_array($Params['user_parameters_unordered']['status'])){

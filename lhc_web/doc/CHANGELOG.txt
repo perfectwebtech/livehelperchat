@@ -1,3 +1,26 @@
+4.18v
+
+1. Brute-force protection for operator logins: per IP and per username throttling with escalating, self-expiring locks (web login and REST API login). Configurable under Password requirements, where active locks can be released.
+2. Fix: failed REST API logins were never recorded against the account because of a wrong form field name.
+3. PHP 8 compatibility: bundled PHPExcel no longer uses the removed curly-brace string offset syntax.
+4. Continuous integration: syntax check, PHPUnit, PHPStan, Docker build and an install + login smoke test on every push.
+5. PHP 8.2+ is now the minimum. composer.lock resolved for PHP 8.3; Docker image moved to php:8.3-apache with a Composer build stage, opcache and a container health check.
+6. New public health endpoint system/health for load balancers and monitoring.
+7. PHP 8.2/8.3 deprecation clean-up: dynamic property notices removed from the system class and all lazy-property models, deprecated FILTER_SANITIZE_STRING dropped from the CLI installer.
+8. Fix: chat/getnotificationsdata crashed with an empty id list; modules that stream output no longer trigger an undefined $Result warning.
+9. Fix: cli/install-cli.php exited with status 1 after a successful installation, breaking automated deployments.
+10. Fix: the Memcache wrapper class failed to compile on PHP 8 whenever the memcache extension was loaded.
+11. REST API keys can be scoped to endpoints and given an expiry date; last use is recorded. Expired keys get HTTP 401, out-of-scope calls HTTP 403.
+12. Security audit trail: chat deletions, chat exports, role changes, password policy changes, login lockouts/unlocks and rejected API key calls are always logged with actor and IP.
+13. Public health endpoint system/health.
+14. Single sign-on through any OpenID Connect provider (authorization code flow with PKCE, RS256 ID token verification): automatic account provisioning, group mapping, allowed e-mail domains, optional hiding of the password form. Configure under System configuration -> Single sign-on.
+15. Production deployment: docker-compose.yml (MariaDB, web, scheduler), first-boot install from environment variables, automatic schema migration on start (cli/update-db.php), database credentials and secrets from environment variables (also <NAME>_FILE secrets) that are never written to settings.ini.php.
+16. Fix: the CLI installer did not create lh_canned_msg_replace.time_zone.
+17. Data retention policy (anonymise / delete closed chats after N days, live and archived) run hourly by cron/data_retention, and data subject requests (find, JSON export, erase by e-mail or phone) in the admin and through cli/gdpr.php. Audited with hashed identifiers.
+18. Prometheus metrics endpoint system/metrics (bearer token): chats per state, oldest waiting visitor, operators online, hourly volume and wait time, login locks, database latency. Back office sends Referrer-Policy; opt-in HSTS.
+
+execute doc/update_db/update_290.sql and doc/update_db/update_291.sql for update
+
 4.17v
 
 1. Advanced chat auto assignment options.

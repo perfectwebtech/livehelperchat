@@ -1543,6 +1543,8 @@ try {
                 ('ignore_user_status','0',0,'Ignore users online statuses and use departments online hours', '0'),
                 ('bbc_button_visible','1',0,'Show BB Code button', '0'),
                 ('password_data','','0','Password requirements','1'),
+                ('sso_oidc','','0','OpenID Connect single sign-on settings','1'),
+                ('gdpr_retention','','0','Data retention and anonymisation policy','1'),
                 ('activity_track_all','0','0','Track all logged operators activity and ignore their individual settings.','0'),
                 ('allow_reopen_closed','0', 0, 'Allow user to reopen closed chats?', '0'),
                 ('reopen_as_new','1', 0, 'Reopen closed chat as new? Otherwise it will be reopened as active.', '0'),
@@ -1870,6 +1872,7 @@ try {
                     $db->query("CREATE TABLE `lh_chat_online_user_footprint_update` (`online_user_id` bigint(20) NOT NULL,  `command` varchar(20) NOT NULL,  `args` varchar(250) NOT NULL,  `ctime` int(11) NOT NULL, KEY `online_user_id` (`online_user_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
                     $db->query("CREATE TABLE `lh_generic_bot_repeat_restrict` (`id` bigint(20) NOT NULL AUTO_INCREMENT PRIMARY KEY, `chat_id` bigint(20) NOT NULL, `trigger_id` bigint(20), `identifier` varchar(20), `counter` int(11) DEFAULT '0', KEY `chat_id_trigger_id` (`chat_id`,`trigger_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
                     $db->query("CREATE TABLE `lh_users_login` (`id` bigint(20) NOT NULL AUTO_INCREMENT,`user_id` bigint(20) NOT NULL,`type` int(11) NOT NULL,`ctime` bigint(20) NOT NULL,`status` int(11) NOT NULL,`ip` varchar(100) NOT NULL,`msg` varchar(250) COLLATE utf8mb4_unicode_ci NOT NULL,PRIMARY KEY (`id`),KEY `user_id_type` (`user_id`,`type`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+                    $db->query("CREATE TABLE `lh_login_throttle` (`id` bigint(20) NOT NULL AUTO_INCREMENT,`type` int(11) NOT NULL,`identifier` varchar(190) NOT NULL,`attempts` int(11) NOT NULL DEFAULT 0,`first_attempt` bigint(20) NOT NULL DEFAULT 0,`last_attempt` bigint(20) NOT NULL DEFAULT 0,`locked_until` bigint(20) NOT NULL DEFAULT 0,`lock_count` int(11) NOT NULL DEFAULT 0,PRIMARY KEY (`id`),UNIQUE KEY `type_identifier` (`type`,`identifier`),KEY `locked_until` (`locked_until`),KEY `last_attempt` (`last_attempt`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
 
 
                     $Departament = new erLhcoreClassModelDepartament();
@@ -2145,6 +2148,9 @@ try {
                     `user_id` int(11) NOT NULL DEFAULT '0',
                     `active` int(11) NOT NULL DEFAULT '0',
                     `ip_restrictions` varchar(250) NOT NULL,
+                    `scopes` varchar(2000) NOT NULL DEFAULT '',
+                    `expires_at` varchar(20) NOT NULL DEFAULT '',
+                    `last_used` bigint(20) NOT NULL DEFAULT 0,
                     PRIMARY KEY (`id`),
                     KEY `api_key` (`api_key`),
                     KEY `user_id` (`user_id`)

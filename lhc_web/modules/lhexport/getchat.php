@@ -15,6 +15,8 @@ try {
 
 		$chat = erLhcoreClassModelChat::fetch((string)$Params['user_parameters']['chat_id']);
 
+		erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_CHAT_EXPORT, 'api_chat', array('format' => $format, 'chat_id' => (int)$Params['user_parameters']['chat_id']), (int)$Params['user_parameters']['chat_id']);
+
 		if ($format =='json') {
 				header('Content-type: application/json');
 				echo erLhcoreClassChatExport::chatExportJSON($chat);

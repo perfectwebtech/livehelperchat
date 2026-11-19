@@ -4,6 +4,18 @@ $Module = array( "name" => "System configuration");
 
 $ViewList = array();
 
+// Public health probe, see modules/lhsystem/health.php
+$ViewList['health'] = array(
+    'params' => array(),
+    'uparams' => array('token')
+);
+
+// Prometheus metrics, token protected, see modules/lhsystem/metrics.php
+$ViewList['metrics'] = array(
+    'params' => array(),
+    'uparams' => array('token')
+);
+
 $ViewList['htmlcode'] = array(
     'params' => array(),
     'functions' => array( 'generatejs' )
