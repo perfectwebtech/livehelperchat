@@ -52,7 +52,9 @@ if (erConfigClassLhConfig::getInstance()->getSetting('site', 'installed') == tru
 
 erLhcoreClassSystem::instance();
 
-$install = new Install('/dev/null');
+$emptyIni = tempnam(sys_get_temp_dir(), 'lhc-install');
+$install = new Install($emptyIni); // settings are supplied below, not from an INI file
+@unlink($emptyIni);
 $install->settings = array(
     'db' => array(
         'host' => $env('LHC_DB_HOST'),

@@ -44,7 +44,8 @@ WORKDIR /var/www/html
 # Runtime-writable directories. settings/settings.ini.php is a symlink into
 # /data/settings (created by the entrypoint) so a persistent volume keeps it.
 RUN mkdir -p cache/compiledtemplates cache/cacheconfig cache/translations cache/userinfo var/storage var/userphoto /data/settings \
-    && chown -R www-data:www-data cache var settings /data
+    && chown -R www-data:www-data cache var settings /data \
+    && chmod -R ug+rwX cache var settings /data
 
 EXPOSE 80
 

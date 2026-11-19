@@ -38,6 +38,15 @@ if [ -n "${LHC_DB_HOST:-}" ]; then
     '
 fi
 
+# Writable for www-data (owner and group): the installer also checks the group bits.
+fix_permissions() {
+    chown -R www-data:www-data cache var "$DATA_DIR" 2>/dev/null || true
+    chmod -R ug+rwX cache var "$DATA_DIR" 2>/dev/null || true
+    chown www-data:www-data settings 2>/dev/null || true
+    chmod ug+rwX settings 2>/dev/null || true
+}
+fix_permissions
+
 is_installed() {
     php -r '$c = @include "settings/settings.ini.php"; exit(is_array($c) && !empty($c["settings"]["site"]["installed"]) ? 0 : 1);'
 }
@@ -69,6 +78,6 @@ if [ "$ROLE" = "web" ] && is_installed && [ "${LHC_AUTO_MIGRATE:-1}" = "1" ]; th
 fi
 
 # Files created above as root must stay writable for Apache.
-chown -R www-data:www-data cache var "$DATA_DIR" 2>/dev/null || true
+fix_permissions
 
 exec "$@"
