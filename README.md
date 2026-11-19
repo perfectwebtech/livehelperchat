@@ -87,6 +87,8 @@ Database credentials and secrets can come from the environment instead of `setti
 | `LHC_DB_HOST`, `LHC_DB_PORT`, `LHC_DB_USER`, `LHC_DB_PASSWORD`, `LHC_DB_DATABASE` | database connection |
 | `LHC_SECRET_HASH` | `site.secrethash` |
 | `LHC_HEALTH_TOKEN` | token for detailed health output |
+| `LHC_METRICS_TOKEN` | enables the Prometheus metrics endpoint |
+| `LHC_HSTS_MAX_AGE` | Strict-Transport-Security max-age on HTTPS responses |
 | `LHC_PROXY_MODE` | trust `X-Forwarded-For` (behind a trusted proxy only) |
 | `LHC_TRUSTED_HOST_PATTERNS` | comma separated accepted host names |
 | `LHC_DEBUG_OUTPUT` | debug output |
@@ -99,6 +101,26 @@ PHP 8.2 or newer is required (`lhc_web/composer.lock` is resolved for PHP 8.3). 
 ### Health endpoint
 
 `GET /index.php/system/health` returns HTTP 200 and `{"status":"ok"}` when the database answers and the writable directories are writable, otherwise HTTP 503 and `{"status":"fail"}`. It is safe to expose to load balancers and uptime monitors: it carries no versions, paths or hostnames. Per-check details (database latency, directory status, cache backend) are included for a logged-in operator, or when `?token=` matches the `health_token` value in `settings/settings.ini.php`.
+
+### Monitoring (Prometheus)
+
+Set `LHC_METRICS_TOKEN` (or `metrics_token` in `settings.ini.php`) to enable `GET /index.php/system/metrics`; send the token as `Authorization: Bearer <token>`. Without a configured token the endpoint returns 404, with a wrong one 401. All values are gauges computed at scrape time, so any number of web containers can be scraped:
+
+| Metric | Meaning |
+|---|---|
+| `lhc_up` | application and database reachable |
+| `lhc_chats{state="pending\|active\|bot"}` | chats currently in each state |
+| `lhc_pending_chat_oldest_seconds` | how long the longest waiting visitor has waited |
+| `lhc_chats_started_last_hour`, `lhc_chat_wait_seconds_avg_last_hour` | volume and average time to accept |
+| `lhc_operators_online`, `lhc_operators_logged_in` | operators visible as online / active including invisible |
+| `lhc_login_locks_active` | identifiers locked by brute-force protection |
+| `lhc_db_query_seconds` | database round-trip latency |
+
+Useful alerts: `lhc_pending_chat_oldest_seconds > 120`, `lhc_operators_online == 0` during business hours, and a failed scrape or `lhc_up == 0`.
+
+### Security headers
+
+Back-office pages send `Referrer-Policy: strict-origin-when-cross-origin` so chat and visitor URLs do not leak to third-party sites. Set `LHC_HSTS_MAX_AGE` (or `hsts_max_age`) to send `Strict-Transport-Security` on HTTPS responses once TLS works end to end. Session cookies already get the `Secure` flag on HTTPS.
 
 ### Data retention and GDPR requests
 

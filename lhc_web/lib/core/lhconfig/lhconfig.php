@@ -21,6 +21,8 @@ class erConfigClassLhConfig
         'LHC_DB_DATABASE' => array('db', 'database', 'string'),
         'LHC_SECRET_HASH' => array('site', 'secrethash', 'string'),
         'LHC_HEALTH_TOKEN' => array('site', 'health_token', 'string'),
+        'LHC_METRICS_TOKEN' => array('site', 'metrics_token', 'string'),
+        'LHC_HSTS_MAX_AGE' => array('site', 'hsts_max_age', 'int'),
         'LHC_PROXY_MODE' => array('site', 'proxy_mode', 'bool'),
         'LHC_DEBUG_OUTPUT' => array('site', 'debug_output', 'bool'),
         'LHC_TRUSTED_HOST_PATTERNS' => array('site', 'trusted_host_patterns', 'list'),

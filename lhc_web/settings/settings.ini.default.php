@@ -21,6 +21,8 @@ return array (
                     'one_login_per_account' => false,
                     'php_session_cookie_name' => '',
                     'health_token' => '', // optional: /index.php/system/health?token=... returns per-check details without a login
+                    'metrics_token' => '', // enables /index.php/system/metrics (Prometheus); send as "Authorization: Bearer <token>"
+                    'hsts_max_age' => 0, // seconds; > 0 sends Strict-Transport-Security on HTTPS responses
                     'time_zone' => '',
                     'date_format' => 'Y-m-d',
                     'date_hour_format' => 'H:i:s',

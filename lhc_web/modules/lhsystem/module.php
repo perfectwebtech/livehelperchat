@@ -10,6 +10,12 @@ $ViewList['health'] = array(
     'uparams' => array('token')
 );
 
+// Prometheus metrics, token protected, see modules/lhsystem/metrics.php
+$ViewList['metrics'] = array(
+    'params' => array(),
+    'uparams' => array('token')
+);
+
 $ViewList['htmlcode'] = array(
     'params' => array(),
     'functions' => array( 'generatejs' )

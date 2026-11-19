@@ -48,6 +48,7 @@ return array_merge(array (
         'erLhcoreClassAuditTrail' => 'lib/core/lhcore/lhaudittrail.php',
         'erLhcoreClassSsoOidc' => 'lib/core/lhsso/lhssooidc.php',
         'erLhcoreClassGdpr' => 'lib/core/lhgdpr/lhgdpr.php',
+        'erLhcoreClassMetrics' => 'lib/core/lhmetrics/lhmetrics.php',
         'Clamav'                     => 'lib/core/lhexternal/Clamav.php',
 
         'erLhcoreClassBBCode'       => 'lib/core/lhbbcode/lhbbcode.php',

@@ -17,6 +17,7 @@
 15. Production deployment: docker-compose.yml (MariaDB, web, scheduler), first-boot install from environment variables, automatic schema migration on start (cli/update-db.php), database credentials and secrets from environment variables (also <NAME>_FILE secrets) that are never written to settings.ini.php.
 16. Fix: the CLI installer did not create lh_canned_msg_replace.time_zone.
 17. Data retention policy (anonymise / delete closed chats after N days, live and archived) run hourly by cron/data_retention, and data subject requests (find, JSON export, erase by e-mail or phone) in the admin and through cli/gdpr.php. Audited with hashed identifiers.
+18. Prometheus metrics endpoint system/metrics (bearer token): chats per state, oldest waiting visitor, operators online, hourly volume and wait time, login locks, database latency. Back office sends Referrer-Policy; opt-in HSTS.
 
 execute doc/update_db/update_290.sql and doc/update_db/update_291.sql for update
 

@@ -17,6 +17,8 @@ parameters:
         - lib/core/lhcore/lhaudittrail.php
         - lib/core/lhsso/lhssooidc.php
         - lib/core/lhgdpr/lhgdpr.php
+        - lib/core/lhmetrics/lhmetrics.php
+        - modules/lhsystem/metrics.php
         - modules/lhsystem/health.php
         - modules/lhcron/login_monitoring.php
         - tests

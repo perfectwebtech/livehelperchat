@@ -92,6 +92,14 @@ class erLhcoreClassModule{
                 // Or it's site_admin based one
                 if (isset($currentUser) || erLhcoreClassSystem::instance()->SiteAccess == 'site_admin') {
                     header('X-Frame-Options: SAMEORIGIN');
+                    // Chat and visitor URLs from the back office must not leak to third-party sites.
+                    header('Referrer-Policy: strict-origin-when-cross-origin');
+                }
+
+                // Opt-in HSTS (settings: hsts_max_age / LHC_HSTS_MAX_AGE), only on HTTPS responses.
+                $hstsMaxAge = (int)erConfigClassLhConfig::getInstance()->getSetting('site', 'hsts_max_age', false);
+                if ($hstsMaxAge > 0 && erLhcoreClassSystem::$httpsMode === true) {
+                    header('Strict-Transport-Security: max-age=' . $hstsMaxAge);
                 }
 
             	if (isset($currentUser) && $currentUser->isLogged() && ($timeZone = $currentUser->getUserTimeZone()) != '') {    
