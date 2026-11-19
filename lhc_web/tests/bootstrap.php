@@ -19,3 +19,7 @@ ezcBase::addClassRepository('./', './lib/autoloads');
 spl_autoload_register(static function ($className) {
     ezcBase::autoload($className);
 }, true, false);
+
+// ezcBase reads lib/autoloads/lhcore_autoload.php lazily on the first erLhcore* lookup;
+// prime it so classes with other prefixes (erConfigClass*, erLhAbstract*) resolve too.
+class_exists('erLhcoreClassSystem');

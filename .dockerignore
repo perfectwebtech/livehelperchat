@@ -5,3 +5,5 @@ lhc_web/lib/vendor
 lhc_web/node_modules
 lhc_web/cache/*/*
 lhc_web/settings/settings.ini.php
+.env
+docker-compose.yml

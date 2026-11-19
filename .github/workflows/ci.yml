@@ -139,19 +139,17 @@ jobs:
           INI
           php cli/install-cli.php ci-settings.ini
           test -f settings/settings.ini.php
+      - name: Fresh install matches the bundled schema
+        working-directory: lhc_web
+        run: php cli/update-db.php --dry-run | tee /dev/stderr | grep 'up to date'
       - name: Login page, brute-force throttle, health probe and successful login
         working-directory: lhc_web
         run: bash ../.github/scripts/smoke-login.sh http://127.0.0.1:8080 admin 'CiSmokeTest!123'
 
-  docker-image:
-    name: Docker image builds
+  docker-stack:
+    name: Docker Compose stack
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Boot docker-compose.yml and verify the deployment
+        run: bash .github/scripts/smoke-compose.sh

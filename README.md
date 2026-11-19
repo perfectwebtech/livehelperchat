@@ -56,7 +56,7 @@ Every push and pull request runs `.github/workflows/ci.yml`:
  * **Unit tests** - PHPUnit (`lhc_web/tests`, config in `lhc_web/phpunit.xml.dist`).
  * **PHPStan** - static analysis of the paths listed in `lhc_web/phpstan.neon.dist` (advisory until the first green run).
  * **Install + login smoke test** - installs a fresh copy through `cli/install-cli.php` against MariaDB, then exercises the login page, the brute-force throttle, the REST API login and the admin settings page (`.github/scripts/smoke-login.sh`).
- * **Docker image** - the root `Dockerfile` must build.
+ * **Docker Compose stack** - builds the image, boots MariaDB + web + scheduler from scratch, logs in, checks the schema is in sync and no secret was persisted, and recreates the web container to prove a redeploy keeps the installation (`.github/scripts/smoke-compose.sh`).
 
 Developer tools live in `lhc_web/tools/composer.json` so the application's own `composer.json`/`composer.lock` stay untouched:
 
@@ -66,6 +66,31 @@ composer install -d tools
 tools/vendor/bin/phpunit
 tools/vendor/bin/phpstan analyse
 ```
+
+### Production deployment with Docker Compose
+
+```
+cp .env.example .env        # set the passwords and LHC_SECRET_HASH
+docker compose up -d --build
+```
+
+This starts MariaDB, the web container and a scheduler container that runs the background jobs (workflow, department availability, login monitoring, transfers every minute; anonymisation and archiving every hour) without system cron. On first boot the web container installs Live Helper Chat and creates the administrator from `LHC_ADMIN_*`. On every start it applies the bundled database schema (`LHC_AUTO_MIGRATE=1`), so a redeploy of a newer image upgrades the database automatically. Run `docker compose exec web php cli/update-db.php --dry-run` to preview pending schema changes.
+
+The web port binds to localhost by default. Publish it through a TLS-terminating reverse proxy and set `LHC_PROXY_MODE=1` only when that proxy is trusted. Uploaded files live in the `lhc-uploads` volume, the settings file in `lhc-data`, the database in `lhc-db`; back up all three.
+
+#### Configuration through environment variables
+
+Database credentials and secrets can come from the environment instead of `settings/settings.ini.php`, for containers and any other deployment. Values from the environment are used at runtime and never written back to the settings file. Each variable also accepts a `<NAME>_FILE` form pointing to a file (Docker and Kubernetes secrets).
+
+| Variable | Setting |
+|---|---|
+| `LHC_DB_HOST`, `LHC_DB_PORT`, `LHC_DB_USER`, `LHC_DB_PASSWORD`, `LHC_DB_DATABASE` | database connection |
+| `LHC_SECRET_HASH` | `site.secrethash` |
+| `LHC_HEALTH_TOKEN` | token for detailed health output |
+| `LHC_PROXY_MODE` | trust `X-Forwarded-For` (behind a trusted proxy only) |
+| `LHC_TRUSTED_HOST_PATTERNS` | comma separated accepted host names |
+| `LHC_DEBUG_OUTPUT` | debug output |
+| `LHC_REDIS_HOST`, `LHC_REDIS_PORT`, `LHC_REDIS_PASSWORD` | Redis connection |
 
 ### Requirements and Docker image
 

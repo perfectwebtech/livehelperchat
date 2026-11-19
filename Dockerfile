@@ -35,13 +35,21 @@ RUN a2enmod headers rewrite
 COPY ./lhc_web /var/www/html
 COPY --from=vendor /app/lib/vendor /var/www/html/lib/vendor
 
+# Entrypoint, first-boot installer and job scheduler live outside the web root.
+COPY docker/ /opt/lhc/
+RUN chmod +x /opt/lhc/entrypoint.sh /opt/lhc/scheduler.sh
+
 WORKDIR /var/www/html
 
-# Runtime-writable directories
-RUN mkdir -p cache/compiledtemplates cache/cacheconfig cache/translations cache/userinfo var/storage var/userphoto \
-    && chown -R www-data:www-data cache var settings
+# Runtime-writable directories. settings/settings.ini.php is a symlink into
+# /data/settings (created by the entrypoint) so a persistent volume keeps it.
+RUN mkdir -p cache/compiledtemplates cache/cacheconfig cache/translations cache/userinfo var/storage var/userphoto /data/settings \
+    && chown -R www-data:www-data cache var settings /data
 
 EXPOSE 80
+
+ENTRYPOINT ["/opt/lhc/entrypoint.sh"]
+CMD ["apache2-foreground"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD curl -fsS http://127.0.0.1/index.php/system/health > /dev/null || exit 1

@@ -10,3 +10,6 @@
 /lhc_web/tools/composer.lock
 /lhc_web/cache/.phpunit.result.cache
 /lhc_web/cache/phpstan/
+
+# Local deployment secrets
+.env
