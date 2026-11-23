@@ -5,7 +5,10 @@
 #   file, and a web container recreate (redeploy) that keeps the installation.
 set -euo pipefail
 
+# The tls profile adds Caddy on :80/:443 with a local CA for "localhost".
+export COMPOSE_PROFILES=tls
 BASE_URL=http://127.0.0.1:8080
+TLS_URL=https://localhost
 ADMIN_PASSWORD='Ci"Stack${pw}!9'
 DB_PASSWORD='ci-db-pass-4f1e'
 
@@ -18,6 +21,8 @@ LHC_ADMIN_EMAIL=ci@example.com
 LHC_HEALTH_TOKEN=ci-health-token
 LHC_METRICS_TOKEN=ci-metrics-token
 LHC_HSTS_MAX_AGE=300
+LHC_DOMAIN=localhost
+LHC_PROXY_MODE=1
 ENV
 
 fail() { echo "::error::$1"; docker compose ps; docker compose logs --tail=80; exit 1; }
@@ -83,5 +88,36 @@ grep -F 'lhc_chats{state="pending"}' <<< "$METRICS" > /dev/null || fail "metrics
 HEADERS="$(curl -s -D - -o /dev/null "$BASE_URL/index.php/site_admin/user/login")"
 grep -i 'Referrer-Policy: strict-origin-when-cross-origin' <<< "$HEADERS" > /dev/null || fail "admin pages miss Referrer-Policy"
 grep -i 'Strict-Transport-Security' <<< "$(curl -s -D - -o /dev/null -H 'X-Forwarded-Proto: https' "$BASE_URL/index.php/site_admin/user/login")" > /dev/null || fail "HSTS missing on HTTPS responses although LHC_HSTS_MAX_AGE is set"
+
+echo "9. HTTPS through Caddy: Secure session cookie, HSTS, real client IP"
+for _ in $(seq 1 30); do curl -skf -o /dev/null "$TLS_URL/index.php/system/health" && break; sleep 2; done
+curl -skf "$TLS_URL/index.php/system/health" | grep '"status":"ok"' > /dev/null || fail "health over HTTPS through Caddy failed"
+TLS_HEADERS="$(curl -sk -D - -o /dev/null "$TLS_URL/index.php/site_admin/user/login")"
+grep -i '^set-cookie: PHPSESSID=.*; secure' <<< "$TLS_HEADERS" > /dev/null || fail "session cookie over HTTPS lacks the Secure flag"
+grep -i '^strict-transport-security: max-age=300' <<< "$TLS_HEADERS" > /dev/null || fail "HSTS missing over HTTPS"
+# A failed login records the client IP. Caddy replaces client-sent X-Forwarded-For,
+# so the app must log the docker gateway (the real peer), not the spoofed address.
+TLS_JAR="$(mktemp)"
+TOKEN=$(curl -sk -c "$TLS_JAR" -b "$TLS_JAR" "$TLS_URL/index.php/site_admin/user/login" | grep -o 'name="csfr_token" value="[^"]*"' | head -1 | sed 's/.*value="//; s/"$//')
+curl -sk -c "$TLS_JAR" -b "$TLS_JAR" -o /dev/null -H 'X-Forwarded-For: 203.0.113.50' -X POST "$TLS_URL/index.php/site_admin/user/login" \
+  --data-urlencode "Username=admin" --data-urlencode "Password=wrong-on-purpose" --data-urlencode "csfr_token=$TOKEN" --data-urlencode "Login=Login"
+GATEWAY=$(docker network inspect "$(docker compose ps -q web | xargs docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}')" -f '{{(index .IPAM.Config 0).Gateway}}')
+LOGGED_IP=$(docker compose exec -T db sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE" -N -e "SELECT ip FROM lh_users_login ORDER BY id DESC LIMIT 1"')
+[ "$LOGGED_IP" = "$GATEWAY" ] || fail "app logged client IP '$LOGGED_IP', expected the real peer '$GATEWAY' (proxy mode / X-Forwarded-For handling)"
+
+echo "10. disaster recovery: back up, destroy every volume, restore"
+db_query() { printf '%s\n' "$1" | docker compose exec -T db sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE" -N'; }
+PROBE="probe-$RANDOM-$RANDOM"
+db_query "INSERT INTO lh_chat_config (\`identifier\`, \`value\`, \`type\`, \`explain\`, \`hidden\`) VALUES ('backup_probe', '$PROBE', 0, 'ci', 1)"
+docker compose exec -T web sh -c "echo $PROBE > /var/www/html/var/storage/backup-probe.txt"
+BACKUP_ROOT="$(mktemp -d)"
+BACKUP_DIR=$(deploy/backup.sh "$BACKUP_ROOT" | tail -n 1)
+[ -s "$BACKUP_DIR/database.sql.gz" ] && [ -s "$BACKUP_DIR/uploads.tar.gz" ] && [ -s "$BACKUP_DIR/settings.ini.php" ] || fail "backup is missing files"
+docker compose down -v
+deploy/restore.sh "$BACKUP_DIR" --yes || fail "restore failed"
+[ "$(db_query "SELECT value FROM lh_chat_config WHERE identifier='backup_probe'")" = "$PROBE" ] || fail "database content did not survive the restore"
+[ "$(docker compose exec -T web cat /var/www/html/var/storage/backup-probe.txt)" = "$PROBE" ] || fail "uploaded files did not survive the restore"
+login || fail "admin login failed after the restore"
+if grep -F 'installing from environment' <<< "$(service_logs web)" > /dev/null; then fail "restored stack reinstalled instead of using the restored data"; fi
 
 echo "compose stack smoke test passed"

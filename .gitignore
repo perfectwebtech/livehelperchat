@@ -13,3 +13,4 @@
 
 # Local deployment secrets
 .env
+backups/

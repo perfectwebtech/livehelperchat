@@ -3,9 +3,10 @@
 #   cp .env.example .env      # then set the passwords
 #   docker compose up -d --build
 #
-# Put a TLS-terminating reverse proxy (Caddy, nginx, Traefik, a cloud load
-# balancer) in front of the web port and set LHC_PROXY_MODE=1 so visitor IPs
-# are taken from X-Forwarded-For. Only do that when the proxy is trusted.
+# HTTPS: `docker compose --profile tls up -d` adds Caddy with automatic
+# Let's Encrypt certificates for LHC_DOMAIN (set LHC_PROXY_MODE=1 with it).
+# Or put your own TLS proxy / load balancer in front of the web port.
+# See DEPLOYMENT.md.
 
 x-lhc-env: &lhc-env
   LHC_DB_HOST: db
@@ -78,7 +79,29 @@ services:
     healthcheck:
       disable: true
 
+  # Automatic HTTPS. Enable with: docker compose --profile tls up -d
+  # Needs LHC_DOMAIN pointing at this server, ports 80/443 open, LHC_PROXY_MODE=1.
+  caddy:
+    image: caddy:2
+    profiles: ["tls"]
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_started
+    environment:
+      LHC_DOMAIN: ${LHC_DOMAIN:?set LHC_DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
 volumes:
   lhc-db:
   lhc-data:
   lhc-uploads:
+  caddy-data:
+  caddy-config:
