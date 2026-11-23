@@ -69,6 +69,8 @@ tools/vendor/bin/phpstan analyse
 
 ### Production deployment with Docker Compose
 
+The full runbook (server, first deployment, go-live checklist, updates, rollback, backups, monitoring) is in [DEPLOYMENT.md](DEPLOYMENT.md). Quick start:
+
 ```
 cp .env.example .env        # set the passwords and LHC_SECRET_HASH
 docker compose up -d --build
@@ -90,7 +92,7 @@ Database credentials and secrets can come from the environment instead of `setti
 | `LHC_METRICS_TOKEN` | enables the Prometheus metrics endpoint |
 | `LHC_HSTS_MAX_AGE` | Strict-Transport-Security max-age on HTTPS responses |
 | `LHC_PROXY_MODE` | trust `X-Forwarded-For` (behind a trusted proxy only) |
-| `LHC_TRUSTED_HOST_PATTERNS` | comma separated accepted host names |
+| `LHC_TRUSTED_HOST_PATTERNS` | comma separated regular expressions for host names allowed in generated links |
 | `LHC_DEBUG_OUTPUT` | debug output |
 | `LHC_REDIS_HOST`, `LHC_REDIS_PORT`, `LHC_REDIS_PASSWORD` | Redis connection |
 

@@ -50,6 +50,9 @@ if (!in_array($instance->SiteAccess, $possibleLoginSiteAccess)) {
 }
 
 $tpl = erLhcoreClassTemplate::getInstance( 'lhuser/login.tpl.php');
+
+// Break-glass local login (/(local)/1) keeps the password form visible when single sign-on hides it.
+$tpl->set('local_login', isset($Params['user_parameters_unordered']['local']) && $Params['user_parameters_unordered']['local'] == 1);
 $tpl->set('crossdomain',$crossDomainCookie);
 
 $redirect = '';

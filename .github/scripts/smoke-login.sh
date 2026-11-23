@@ -123,6 +123,11 @@ SSO_AUDIT=$(mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_audits WHERE
 [ "$SSO_AUDIT" -ge 1 ] || fail "SSO login was not written to the audit log"
 # a forged state must be rejected
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/index.php/site_admin/sso/callback?code=x&state=forged")" = "302" ] || fail "callback with a forged state should redirect back to the login page"
+# "Hide the password form" must still allow the break-glass local login.
+FORCED=$(php -r 'echo serialize(array("enabled"=>1,"issuer"=>"http://127.0.0.1:9400","client_id"=>"lhc-smoke","client_secret"=>"smoke-secret","force_sso"=>1));')
+mysql "${mysql_args[@]}" -e "UPDATE lh_chat_config SET \`value\`='$FORCED' WHERE identifier='sso_oidc'"
+curl -s "$BASE_URL/index.php/site_admin/user/login" | grep -o '<form id="form-start-chat"[^>]*>' | grep 'display:none' > /dev/null || fail "force_sso did not hide the password form"
+curl -s "$BASE_URL/index.php/site_admin/user/login/(local)/1" | grep -o '<form id="form-start-chat"[^>]*>' | grep -v 'display:none' | grep '(local)/1' > /dev/null || fail "break-glass /(local)/1 login form is not available"
 mysql "${mysql_args[@]}" -e "DELETE FROM lh_chat_config WHERE identifier='sso_oidc'"
 
 echo "9. data retention policy and data subject requests"
