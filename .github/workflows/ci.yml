@@ -97,6 +97,12 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
       - uses: actions/checkout@v4
+      - name: Start Keycloak (real OpenID Connect provider for the SSO test)
+        run: >-
+          docker run -d --name keycloak -p 8180:8180
+          -v "$PWD/.github/keycloak:/opt/keycloak/data/import:ro"
+          quay.io/keycloak/keycloak:26.0
+          start-dev --import-realm --http-port=8180
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
@@ -145,6 +151,12 @@ jobs:
       - name: Login page, brute-force throttle, health probe and successful login
         working-directory: lhc_web
         run: bash ../.github/scripts/smoke-login.sh http://127.0.0.1:8080 admin 'CiSmokeTest!123'
+      - name: Single sign-on against a real identity provider (Keycloak)
+        working-directory: lhc_web
+        run: bash ../.github/scripts/sso-keycloak.sh
+      - name: Keycloak log
+        if: failure()
+        run: docker logs keycloak 2>&1 | tail -n 80
 
   docker-stack:
     name: Docker Compose stack
