@@ -98,7 +98,7 @@ if ($Params['user_parameters_unordered']['print'] == 1) {
 }
 
 if (isset($Params['user_parameters_unordered']['export']) && $Params['user_parameters_unordered']['export'] == 1 && erLhcoreClassUser::instance()->hasAccessTo('lhchat','export_chats')) {
-    if (ezcInputForm::hasPostData()) {
+    if (ezcInputForm::hasPostData() && isset($_POST['csfr_token']) && $currentUser->validateCSFRToken($_POST['csfr_token'])) {
         session_write_close();
         $ignoreFields = (new erLhcoreClassModelChat)->getState();
         unset($ignoreFields['id']);
