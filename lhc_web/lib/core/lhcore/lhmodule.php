@@ -250,10 +250,13 @@ class erLhcoreClassModule{
 
         include_once('design/defaulttheme/tpl/lhkernel/fatal_error.tpl.php');
 
-        if (file_exists('cache/default.log') && (filesize('cache/default.log')/1000) > 200){
-            file_put_contents('cache/default.log', date('M j H:i:s') . ' [Warning] [default] [default] '. print_r($e,true));
-        } else {
-            file_put_contents('cache/default.log',date('M j H:i:s') . ' [Warning] [default] [default] '. print_r($e,true), FILE_APPEND);
+        // Exception details are written to cache/default.log only when explicitly enabled
+        if (erConfigClassLhConfig::getInstance()->getSetting( 'site', 'log_errors', false ) == true) {
+            if (file_exists('cache/default.log') && (filesize('cache/default.log')/1000) > 200){
+                file_put_contents('cache/default.log', date('M j H:i:s') . ' [Warning] [default] [default] '. print_r($e,true));
+            } else {
+                file_put_contents('cache/default.log',date('M j H:i:s') . ' [Warning] [default] [default] '. print_r($e,true), FILE_APPEND);
+            }
         }
 
         self::logException($e);
