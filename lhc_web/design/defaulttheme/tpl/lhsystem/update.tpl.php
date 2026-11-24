@@ -20,7 +20,10 @@
                 <a target="_blank" href="https://doc.livehelperchat.com/docs/security#secret-hash"><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('system/update','More information')?></a>
             </li>
             <li><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('system/update','Strong export hash')?> -
-            <?php if (strlen(erLhcoreClassModelChatConfig::fetch('export_hash')->current_value) < 50) : ?>
+            <?php $lhSecExportHash = (string)erLhcoreClassModelChatConfig::fetch('export_hash')->current_value; ?>
+            <?php if ($lhSecExportHash === '') : ?>
+                <span class="badge bg-success"><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('system/update','not set')?></span> <?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('system/update','Export hash is not set, chats export is not possible')?>
+            <?php elseif (strlen($lhSecExportHash) < 50) : ?>
                 <span class="badge bg-danger"><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('system/update','Weak')?></span>
             <?php else : ?>
                 <span class="badge bg-success"><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('system/update','Strong')?></span>
