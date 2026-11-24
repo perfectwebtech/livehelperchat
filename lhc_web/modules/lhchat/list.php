@@ -97,7 +97,7 @@ if ($Params['user_parameters_unordered']['print'] == 1) {
 	return;
 }
 
-if (isset($Params['user_parameters_unordered']['export']) && $Params['user_parameters_unordered']['export'] == 1) {
+if (isset($Params['user_parameters_unordered']['export']) && $Params['user_parameters_unordered']['export'] == 1 && erLhcoreClassUser::instance()->hasAccessTo('lhchat','export_chats')) {
     if (ezcInputForm::hasPostData()) {
         session_write_close();
         $ignoreFields = (new erLhcoreClassModelChat)->getState();
