@@ -34,6 +34,12 @@ return array (
                     'site_address' => '',
                     'trusted_host_patterns' => [
                     ],
+                    'rest_api_limit' => array(
+                        'deny_local' => false, // true blocks bot REST API requests to localhost and private/reserved IP ranges
+                        'allow_host' => [
+                            // E.g '127.0.0.1'
+                        ]
+                    ),
                     'extensions' =>
                         array (
                             // 0 => 'customstatus',

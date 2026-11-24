@@ -782,9 +782,74 @@ class erLhcoreClassGenericBotActionRestapi
             );
         }
 
+        $limitOptions = erConfigClassLhConfig::getInstance()->getSetting( 'site', 'rest_api_limit', false);
+
+        $denyLocal = is_array($limitOptions) && isset($limitOptions['deny_local']) && $limitOptions['deny_local'] === true;
+
+        // Hostname resolved IP so it can be pinned on the curl handle below (prevents DNS rebinding)
+        $pinHostNames = array();
+
+        if ($denyLocal === true) {
+            $host = $urlParts['host'] ?? '';
+
+            // allow_host entries are explicitly trusted and bypass local/private destination checks. Only host is compared, port is unrestricted
+            $allowHosts = (isset($limitOptions['allow_host']) && is_array($limitOptions['allow_host'])) ? array_map('strtolower', $limitOptions['allow_host']) : array();
+            $port = isset($urlParts['port']) ? $urlParts['port'] : ($urlParts['scheme'] === 'https' ? 443 : 80);
+
+            $blockedReason = '';
+
+            if (!in_array(strtolower($host), $allowHosts)) {
+                if ($host === '' || strtolower($host) === 'localhost') {
+                    $blockedReason = 'Blocked: private destination ';
+                } else {
+                    // Literal IPs are validated as-is; hostnames are resolved once and then pinned below
+                    if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+                        $resolvedIp = $host;
+                    } else {
+                        $resolvedIp = gethostbyname($host);
+
+                        if ($resolvedIp === $host || filter_var($resolvedIp, FILTER_VALIDATE_IP) === false) {
+                            $blockedReason = 'Blocked: unresolvable host ';
+                        } else {
+                            // Remember host:port so the resolved IP is pinned right before the request
+                            $pinHostNames[] = $host . ':' . $port . ':' . $resolvedIp;
+                        }
+                    }
+
+                    if ($blockedReason == '' && filter_var($resolvedIp, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+                        $blockedReason = 'Blocked: private/reserved IP ';
+                    }
+                }
+            }
+
+            if ($blockedReason != '') {
+                return array(
+                    'content' => $blockedReason . $url,
+                    'content_raw' => $blockedReason . $url,
+                    'http_code' => '500',
+                    'http_error' => '500',
+                    'http_data' => '500',
+                    'content_2' => '',
+                    'content_3' => '',
+                    'content_4' => '',
+                    'content_5' => '',
+                    'content_6' => '',
+                    'meta' => array()
+                );
+            }
+        }
+
         curl_setopt($ch, CURLOPT_URL, $url);
+
+        // Pin the resolved IP so the request cannot be re-resolved to a private address (DNS rebinding)
+        if (!empty($pinHostNames)) {
+            curl_setopt($ch, CURLOPT_RESOLVE, $pinHostNames);
+        }
+
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        @curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
+        // Redirects would bypass the validated destination
+        @curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $denyLocal === false);
 
         $paramsRequest = [
             'headers' => $headers,
