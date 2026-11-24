@@ -2,7 +2,14 @@
 
 $tpl = erLhcoreClassTemplate::getInstance( 'lhchatarchive/listarchivechats.tpl.php');
 
-$archive = erLhcoreClassModelChatArchiveRange::fetch($Params['user_parameters']['id']);
+$archiveId = (int)$Params['user_parameters']['id'];
+
+$archive = erLhcoreClassModelChatArchiveRange::fetch($archiveId);
+
+if (!is_object($archive)) {
+    erLhcoreClassModule::redirect('chatarchive/list');
+    exit;
+}
 
 if (isset($_GET['doSearch'])) {
 	$filterParams = erLhcoreClassSearchHandler::getParams(array('module' => 'chat','module_file' => 'chat_search','format_filter' => true, 'use_override' => true, 'uparams' => $Params['user_parameters_unordered']));
@@ -14,14 +21,17 @@ if (isset($_GET['doSearch'])) {
 
 $append = erLhcoreClassSearchHandler::getURLAppendFromInput($filterParams['input_form']);
 
-// Chat id has to be replaced to table one
-if (isset($filterParams['filter']['filter']['`lh_chat`.`id`'])) {
-    $filterParams['filter']['filter']['`lh_chat_archive_' . $Params['user_parameters']['id'] . '`.`id`'] = $filterParams['filter']['filter']['`lh_chat`.`id`'];
-    unset($filterParams['filter']['filter']['`lh_chat`.`id`']);
-}
-
 // Set correct archive tables
 $archive->setTables();
+
+// Build identifiers from the table name derived from the loaded archive record, never the URL segment
+$archiveTable = erLhcoreClassModelChatArchiveRange::$archiveTable;
+
+// Chat id has to be replaced to table one
+if (isset($filterParams['filter']['filter']['`lh_chat`.`id`'])) {
+    $filterParams['filter']['filter']['`' . $archiveTable . '`.`id`'] = $filterParams['filter']['filter']['`lh_chat`.`id`'];
+    unset($filterParams['filter']['filter']['`lh_chat`.`id`']);
+}
 
 $pages = new lhPaginator();
 $pages->serverURL = erLhcoreClassDesign::baseurl('chatarchive/listarchivechats').'/'.$archive->id.$append;
