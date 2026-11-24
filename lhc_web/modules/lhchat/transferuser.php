@@ -6,6 +6,10 @@ if (is_numeric( $Params['user_parameters']['chat_id']) && is_numeric($Params['us
     $db->beginTransaction();
     try {
 
+        if (!isset($_SERVER['HTTP_X_CSRFTOKEN']) || !erLhcoreClassUser::instance()->validateCSFRToken($_SERVER['HTTP_X_CSRFTOKEN'])) {
+            throw new Exception('Invalid CSRF token!');
+        }
+
         $Chat = erLhcoreClassChat::getSession()->load( 'erLhcoreClassModelChat', $Params['user_parameters']['chat_id']);
         $errors = array();
 

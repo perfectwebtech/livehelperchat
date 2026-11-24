@@ -12,6 +12,6 @@ try {
 
 }
 
-header('Location: ' . $_SERVER['HTTP_REFERER']);
+header('Location: ' . erLhcoreClassChatValidator::getSafeReferer());
 exit;
 ?>

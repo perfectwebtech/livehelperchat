@@ -9,7 +9,7 @@ if (!$currentUser->validateCSFRToken($Params['user_parameters_unordered']['csfr'
 
 $CacheManager = erConfigClassLhCacheConfig::getInstance();
 $CacheManager->expireCache(true);
-header('Location: ' . $_SERVER['HTTP_REFERER']);
+header('Location: ' . erLhcoreClassChatValidator::getSafeReferer());
 exit;
 
 ?>
