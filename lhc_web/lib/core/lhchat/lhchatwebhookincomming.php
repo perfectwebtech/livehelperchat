@@ -1294,7 +1294,7 @@ class erLhcoreClassChatWebhookIncoming {
 
         if (!is_array($url)) {
 
-            $mediaContent = erLhcoreClassModelChatOnlineUser::executeRequest($url, $headers);
+            $mediaContent = erLhcoreClassModelChatOnlineUser::executeRequest($url, $headers, ['deny_local' => true]);
 
             // File name
             $partsFilename = explode('/',strtok($url, '?'));

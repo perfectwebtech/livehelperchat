@@ -387,8 +387,35 @@ class erLhcoreClassModelChatOnlineUser
         }
     }
 
-    public static function executeRequest($url, $headers = [])
+    public static function executeRequest($url, $headers = [], $paramsExecution = [])
     {
+        $urlParts = parse_url($url);
+
+        if (!is_array($urlParts) || !isset($urlParts['scheme']) || !in_array(strtolower($urlParts['scheme']), ['http','https'])) {
+            throw new \Exception('Only HTTP/HTTPS are supported!');
+        }
+
+        $denyLocal = isset($paramsExecution['deny_local']) && $paramsExecution['deny_local'] === true;
+
+        // Resolve hostname and reject private/loopback destinations
+        if ($denyLocal === true) {
+            $host = $urlParts['host'] ?? '';
+
+            if ($host === '' || strtolower($host) === 'localhost') {
+                throw new \Exception('Blocked: private destination');
+            }
+
+            $resolvedIp = gethostbyname($host);
+
+            if (filter_var($resolvedIp, FILTER_VALIDATE_IP) === false) {
+                throw new \Exception('Blocked: unresolvable host');
+            }
+
+            if (filter_var($resolvedIp, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+                throw new \Exception('Blocked: private/reserved IP');
+            }
+        }
+
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -397,7 +424,9 @@ class erLhcoreClassModelChatOnlineUser
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         curl_setopt($ch, CURLOPT_USERAGENT, 'curl/7.29.0');
-        @curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); // Some hostings produces wargning...
+
+        // Redirects would bypass the validated destination
+        @curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $denyLocal === false); // Some hostings produces wargning...
         if (!empty($headers)) {
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         }
