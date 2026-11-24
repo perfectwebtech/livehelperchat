@@ -79,11 +79,6 @@ $ViewList['sendnotice'] = array(
 		'params' => array('online_id')
 );
 
-$ViewList['userinfo'] = array(
-		'script' => 'userinfo.php',
-		'params' => array('user_id')
-);
-
 $FunctionList = array();
 
 ?>

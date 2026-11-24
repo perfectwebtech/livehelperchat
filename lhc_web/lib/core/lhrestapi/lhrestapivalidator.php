@@ -992,8 +992,10 @@ class erLhcoreClassRestAPIHandler
         
             $json = json_encode($data, $options);
             
-            if (isset($_GET['callback'])) {
-                echo $_GET['callback'] . '(' . $json . ')';
+            // JSONP: only a plain JavaScript identifier (optionally dotted) is accepted as callback,
+            // anything else could inject script into the response.
+            if (isset($_GET['callback']) && is_string($_GET['callback']) && preg_match('/^[a-zA-Z_$][a-zA-Z0-9_$]*(\.[a-zA-Z_$][a-zA-Z0-9_$]*)*$/', $_GET['callback']) && strlen($_GET['callback']) <= 100) {
+                echo '/**/' . $_GET['callback'] . '(' . $json . ')';
             } else {
                 echo $json;
             }
