@@ -46,6 +46,29 @@ class erLhcoreClassChatWebhookIncoming {
         }
     }
 
+    /**
+     * Removes [html]...[/html] BBCode wrapper from every value of the incoming payload.
+     *
+     * That BBCode is rendered as raw HTML in the back office, so an external system must
+     * never be able to deliver HTML/JavaScript into an operator session.
+     */
+    public static function stripHtmlBBCode($payload)
+    {
+        if (is_array($payload)) {
+            foreach ($payload as $key => $value) {
+                $payload[$key] = self::stripHtmlBBCode($value);
+            }
+
+            return $payload;
+        }
+
+        if (is_string($payload)) {
+            return str_ireplace(array('[html]', '[/html]'), '', $payload);
+        }
+
+        return $payload;
+    }
+
     public static function processMessage($incomingWebhook, $payloadMessage, $payloadAll) {
 
         $conditions = $incomingWebhook->conditions_array;

@@ -24,6 +24,10 @@ try {
         $data = $dummyPayload;
     }
 
+    // [html] BBCode is rendered as raw HTML in the back office. Incoming payload
+    // is untrusted input, so the tags are always removed before anything is processed.
+    $data = erLhcoreClassChatWebhookIncoming::stripHtmlBBCode($data);
+
     if (erConfigClassLhConfig::getInstance()->getSetting( 'site', 'debug_output' ) == true) {
         erLhcoreClassLog::write(json_encode($data));
     }
