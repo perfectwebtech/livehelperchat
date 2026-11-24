@@ -57,6 +57,9 @@ if ($ts > time()) {
                     $user->llogin = time();
 
                     erLhcoreClassUser::getSession()->update($user);
+
+                    // Password rotation has to rotate the REST API tokens as well
+                    erLhcoreClassModelUserSession::revokeForUser($user->id);
                                         
                     // Login user instantly as during password change he verified his logins
                     erLhcoreClassUser::instance()->setLoggedUser($user->id);
