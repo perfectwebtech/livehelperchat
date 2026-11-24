@@ -124,7 +124,8 @@ if (empty($Errors)) {
             $chat->referrer = '';
         }
     }
-    $chat->session_referrer = isset($requestPayload['fields']['r']) ? $requestPayload['fields']['r'] : '';
+    $chat->referrer = erLhcoreClassChatValidator::sanitizeUrl($chat->referrer);
+    $chat->session_referrer = erLhcoreClassChatValidator::sanitizeUrl(isset($requestPayload['fields']['r']) ? $requestPayload['fields']['r'] : '');
 
     if (isset($restAPI) && isset($requestPayload['chat_variables']) && is_array($requestPayload['chat_variables'])) {
         $chat_variables_array = $chat->chat_variables_array;

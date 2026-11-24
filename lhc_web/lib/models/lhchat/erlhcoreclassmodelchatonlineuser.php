@@ -743,9 +743,9 @@ class erLhcoreClassModelChatOnlineUser
 
     public static function getReferer(){
         if (isset($_SERVER['HTTP_REFERER']) && !empty($_SERVER['HTTP_REFERER'])) {
-            return $_SERVER['HTTP_REFERER'];
+            return erLhcoreClassChatValidator::sanitizeUrl($_SERVER['HTTP_REFERER']);
         } elseif (isset($_SERVER['HTTP_ORIGIN']) && $_SERVER['HTTP_ORIGIN'] != '') {
-            return $_SERVER['HTTP_ORIGIN'];
+            return erLhcoreClassChatValidator::sanitizeUrl($_SERVER['HTTP_ORIGIN']);
         }
 
         return '';
@@ -824,7 +824,7 @@ class erLhcoreClassModelChatOnlineUser
                     $item->ip = isset($paramsHandle['ip']) ? $paramsHandle['ip'] : erLhcoreClassIPDetect::getIP();
                     $item->vid = mb_substr($paramsHandle['vid'],0,50);
                     $item->identifier = (isset($paramsHandle['identifier']) && !empty($paramsHandle['identifier'])) ? $paramsHandle['identifier'] : '';
-                    $item->referrer = isset($_GET['r']) ? rawurldecode($_GET['r']) : '';
+                    $item->referrer = erLhcoreClassChatValidator::sanitizeUrl(isset($_GET['r']) ? rawurldecode($_GET['r']) : '');
                     $item->total_visits = 1;
                     $item->last_visit_prev = time();
 
@@ -981,7 +981,7 @@ class erLhcoreClassModelChatOnlineUser
                 $item->user_agent = isset($_POST['ua']) ? $_POST['ua'] : (isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '');
                 $location = isset($_POST['l']) ? $_POST['l'] : (isset($_GET['l']) ? rawurldecode($_GET['l']) : ($item->current_page == '' ? self::getReferer() : null));
                 if ($location !== null) {
-                    $item->current_page = $location;
+                    $item->current_page = erLhcoreClassChatValidator::sanitizeUrl($location);
                 }
                 $item->page_title = isset($_POST['dt']) ? $_POST['dt'] : (isset($_GET['dt']) ? substr((string)rawurldecode($_GET['dt']),0,250) : '');
                 $item->last_visit = time();
