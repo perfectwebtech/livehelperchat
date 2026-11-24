@@ -130,6 +130,15 @@ curl -s "$BASE_URL/index.php/site_admin/user/login" | grep -o '<form id="form-st
 curl -s "$BASE_URL/index.php/site_admin/user/login/(local)/1" | grep -o '<form id="form-start-chat"[^>]*>' | grep -v 'display:none' | grep '(local)/1' > /dev/null || fail "break-glass /(local)/1 login form is not available"
 mysql "${mysql_args[@]}" -e "DELETE FROM lh_chat_config WHERE identifier='sso_oidc'"
 
+echo "8b. upstream security fixes: cron over HTTP, JSONP callback, open redirect"
+curl -s "$BASE_URL/cron.php?c=cron/workflow" | grep -q 'command line' || fail "cron.php must refuse to run over HTTP"
+JSONP=$(curl -s -u "$USERNAME:openkey000000000000000000000000000000000" "$BASE_URL/index.php/restapi/departments?callback=alert(1)//")
+case "$JSONP" in alert*) fail "JSONP callback is not validated" ;; esac
+JSONP=$(curl -s -u "$USERNAME:openkey000000000000000000000000000000000" "$BASE_URL/index.php/restapi/departments?callback=cb_1")
+case "$JSONP" in "/**/cb_1("*) ;; *) fail "valid JSONP callback was not honoured" ;; esac
+LOC=$(curl -s -o /dev/null -w '%{redirect_url}' -c "$JAR" -b "$JAR" "$BASE_URL/index.php/site_admin/user/login/(r)/$(php -r 'echo rawurlencode(base64_encode("//evil.example/x"));')")
+case "$LOC" in *evil.example*) fail "login redirect parameter allows an off-site redirect" ;; esac
+
 echo "9. data retention policy and data subject requests"
 IDS=$(php "$(dirname "$0")/gdpr-fixture.php" . 2>/dev/null | tail -1)
 id_of() { echo "$IDS" | php -r '$d = json_decode(stream_get_contents(STDIN), true); echo $d[$argv[1]];' "$1"; }

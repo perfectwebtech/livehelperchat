@@ -88,6 +88,15 @@ grep -F 'lhc_chats{state="pending"}' <<< "$METRICS" > /dev/null || fail "metrics
 HEADERS="$(curl -s -D - -o /dev/null "$BASE_URL/index.php/site_admin/user/login")"
 grep -i 'Referrer-Policy: strict-origin-when-cross-origin' <<< "$HEADERS" > /dev/null || fail "admin pages miss Referrer-Policy"
 grep -i 'Strict-Transport-Security' <<< "$(curl -s -D - -o /dev/null -H 'X-Forwarded-Proto: https' "$BASE_URL/index.php/site_admin/user/login")" > /dev/null || fail "HSTS missing on HTTPS responses although LHC_HSTS_MAX_AGE is set"
+# .htaccess: private folders are not reachable over HTTP, static assets still are
+for private in settings/settings.ini.php cache/ var/ lib/core/lhcore/lhmodule.php doc/update_db/structure.json cron.php; do
+  CODE=$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/$private")
+  case "$private" in
+    cron.php) curl -s "$BASE_URL/cron.php" | grep -q 'command line' || fail "cron.php must refuse to run over HTTP" ;;
+    *) [ "$CODE" = "403" ] || fail "/$private must be forbidden over HTTP (got $CODE)" ;;
+  esac
+done
+[ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/design/defaulttheme/css/app-dark.css")" = "200" ] || fail "static design assets must still be served"
 
 echo "9. HTTPS through Caddy: Secure session cookie, HSTS, real client IP"
 for _ in $(seq 1 30); do curl -skf -o /dev/null "$TLS_URL/index.php/system/health" && break; sleep 2; done
