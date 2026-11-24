@@ -8,7 +8,7 @@ $hashSecret = erLhcoreClassModelChatConfig::fetch('export_hash')->current_value;
 try {
     
     if (strlen($hashSecret) < 50) {
-        throw new Exception('Export hash to short!');
+        throw new Exception('Export hash is empty or too short!');
     }
 
 	if ( sha1('getcount'.$hashSecret) == $hash ) {
