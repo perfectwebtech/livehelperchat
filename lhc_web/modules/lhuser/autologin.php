@@ -25,6 +25,9 @@ if ($instance->SiteAccess != 'site_admin') {
     $redirect = rawurldecode($Params['user_parameters_unordered']['t']);
     $redirectFull .= $redirect != '' ? '/(t)/'.rawurlencode($redirect) : '';
 
+    $redirect = rawurldecode($Params['user_parameters_unordered']['n']);
+    $redirectFull .= $redirect != '' ? '/(n)/'.rawurlencode($redirect) : '';
+
     $redirectHash = rawurlencode(rawurldecode($Params['user_parameters']['hash']));
         
     header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin/user/autologin').'/'.$redirectHash.$redirectFull );
@@ -39,16 +42,18 @@ if ($data['enabled'] == 1) {
         'r' => base64_decode(rawurldecode($Params['user_parameters_unordered']['r'])),
         'u' => rawurldecode($Params['user_parameters_unordered']['u']),
         'l' => rawurldecode($Params['user_parameters_unordered']['l']),
+        'n' => rawurldecode(isset($Params['user_parameters_unordered']['n']) ? $Params['user_parameters_unordered']['n'] : ''),
         't' => rawurldecode($Params['user_parameters_unordered']['t']),
     );
 
     $dataRequest = array_filter($dataRequest);
     
-    $validateHash = sha1($data['secret_hash'].sha1($data['secret_hash'].implode(',', $dataRequest)));
+    $validateHash = hash_hmac('sha256', implode(',', $dataRequest), $data['secret_hash']);
     
-    if ($validateHash == $Params['user_parameters']['hash']) {
+    if (hash_equals($validateHash, (string)$Params['user_parameters']['hash'])) {
         
-        if (isset($dataRequest['t']) && $dataRequest['t'] > 0 && $dataRequest['t'] < time()) {
+        // Expiry time is mandatory
+        if (!isset($dataRequest['t']) || $dataRequest['t'] <= 0 || $dataRequest['t'] < time()) {
             die(erTranslationClassLhTranslation::getInstance()->getTranslation('users/autologin','Autologin hash has expired'));
         }
 
