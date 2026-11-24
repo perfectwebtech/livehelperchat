@@ -387,6 +387,43 @@ class erLhcoreClassModelChatOnlineUser
         }
     }
 
+    /**
+     * Validates that URL is http/https and points to a public destination.
+     * Returns pin entry (host:port:ip) for CURLOPT_RESOLVE so the validated IP is used.
+     */
+    private static function validateRequestUrl($url)
+    {
+        $urlParts = parse_url($url);
+
+        if (!is_array($urlParts) || !isset($urlParts['scheme']) || !in_array(strtolower($urlParts['scheme']), ['http','https'])) {
+            throw new \Exception('Only HTTP/HTTPS are supported!');
+        }
+
+        $host = $urlParts['host'] ?? '';
+        $port = isset($urlParts['port']) ? (int)$urlParts['port'] : (strtolower($urlParts['scheme']) === 'https' ? 443 : 80);
+
+        if ($host === '' || strtolower($host) === 'localhost') {
+            throw new \Exception('Blocked: private destination');
+        }
+
+        // Literal IPs are validated as-is; hostnames are resolved once
+        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+            $resolvedIp = $host;
+        } else {
+            $resolvedIp = gethostbyname($host);
+
+            if ($resolvedIp === $host || filter_var($resolvedIp, FILTER_VALIDATE_IP) === false) {
+                throw new \Exception('Blocked: unresolvable host');
+            }
+        }
+
+        if (filter_var($resolvedIp, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+            throw new \Exception('Blocked: private/reserved IP');
+        }
+
+        return $host . ':' . $port . ':' . $resolvedIp;
+    }
+
     public static function executeRequest($url, $headers = [], $paramsExecution = [])
     {
         $urlParts = parse_url($url);
@@ -399,27 +436,7 @@ class erLhcoreClassModelChatOnlineUser
 
         // Resolve hostname and reject private/loopback destinations
         if ($denyLocal === true) {
-            $host = $urlParts['host'] ?? '';
-            $port = isset($urlParts['port']) ? (int)$urlParts['port'] : (strtolower($urlParts['scheme']) === 'https' ? 443 : 80);
-
-            if ($host === '' || strtolower($host) === 'localhost') {
-                throw new \Exception('Blocked: private destination');
-            }
-
-            // Literal IPs are validated as-is; hostnames are resolved once and then pinned below
-            if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
-                $resolvedIp = $host;
-            } else {
-                $resolvedIp = gethostbyname($host);
-
-                if ($resolvedIp === $host || filter_var($resolvedIp, FILTER_VALIDATE_IP) === false) {
-                    throw new \Exception('Blocked: unresolvable host');
-                }
-            }
-
-            if (filter_var($resolvedIp, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
-                throw new \Exception('Blocked: private/reserved IP');
-            }
+            $pinEntry = self::validateRequestUrl($url);
         }
 
         $ch = curl_init();
@@ -433,15 +450,41 @@ class erLhcoreClassModelChatOnlineUser
 
         if ($denyLocal === true) {
             // Pin DNS to the validated IP to prevent DNS rebinding / multi-record bypass
-            curl_setopt($ch, CURLOPT_RESOLVE, [$host . ':' . $port . ':' . $resolvedIp]);
+            curl_setopt($ch, CURLOPT_RESOLVE, [$pinEntry]);
         }
 
-        // Redirects would bypass the validated destination
+        // With deny_local redirects are followed manually below so each destination is validated
         @curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $denyLocal === false); // Some hostings produces wargning...
         if (!empty($headers)) {
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         }
         $content = curl_exec($ch);
+
+        if ($denyLocal === true) {
+            // Manually handle redirects with SSRF validation
+            $maxRedirects = 5;
+            $redirectCount = 0;
+            $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+            while (in_array($statusCode, [301, 302, 303, 307, 308]) && $redirectCount < $maxRedirects) {
+                $redirectUrl = curl_getinfo($ch, CURLINFO_REDIRECT_URL);
+
+                if (empty($redirectUrl)) {
+                    break;
+                }
+
+                // Re-validate redirect URL and pin its resolved IP
+                $pinEntry = self::validateRequestUrl($redirectUrl);
+                curl_setopt($ch, CURLOPT_RESOLVE, [$pinEntry]);
+
+                // Clear headers on redirect so credentials are not sent to another host
+                curl_setopt($ch, CURLOPT_HTTPHEADER, []);
+                curl_setopt($ch, CURLOPT_URL, $redirectUrl);
+                $content = curl_exec($ch);
+                $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $redirectCount++;
+            }
+        }
 
         return $content;
     }
