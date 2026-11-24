@@ -27,7 +27,7 @@ if ($Params['user_parameters_unordered']['action'] == 'tabs') {
 $oldSetting = (int)erLhcoreClassModelUserSetting::getSetting($identifier, $defaultValue);
 erLhcoreClassModelUserSetting::setSetting($identifier,$oldSetting == 1 ? 0 : 1);
 
-header('Location: ' . $_SERVER['HTTP_REFERER']);
+header('Location: ' . erLhcoreClassChatValidator::getSafeReferer());
 exit;
 
 ?>

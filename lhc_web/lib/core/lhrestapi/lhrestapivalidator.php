@@ -142,7 +142,13 @@ class erLhcoreClassRestAPIHandler
                 }
 
                 $user = erLhcoreClassModelUser::findOne(array('filter' => array('username' => $apiData[0])));
-                if (!($user instanceof erLhcoreClassModelUser) || !password_verify($apiData[1], $user->password)) {
+
+                // Always run password_verify so response time does not reveal whether the username exists
+                $passwordValid = ($user instanceof erLhcoreClassModelUser)
+                    ? password_verify($apiData[1], $user->password)
+                    : (password_verify($apiData[1], '$2y$10$TSJv59MKTA7CjWa2EdecfOwsw9omyl1IHMfCLD8x9VuPaFpO4V4m2') && false);
+
+                if (!($user instanceof erLhcoreClassModelUser) || !$passwordValid) {
 
                     if ($user instanceof erLhcoreClassModelUser) {
                         erLhcoreClassModelUserLogin::logUserAction(array(

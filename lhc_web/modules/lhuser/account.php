@@ -155,6 +155,8 @@ if (isset($_POST['Update'])) {
 		exit;
 	}
 	
+	$passwordHashBefore = $UserData->password;
+
 	$Errors = erLhcoreClassUserValidator::validateAccount($UserData);
 
     if (erLhcoreClassUser::instance()->hasAccessTo('lhuser','changephoto')) {
@@ -172,6 +174,11 @@ if (isset($_POST['Update'])) {
     if (count($Errors) == 0) {
     	
         $UserData->updateThis();
+
+        // Password rotation has to rotate the REST API tokens as well
+        if ($passwordHashBefore !== $UserData->password) {
+            erLhcoreClassModelUserSession::revokeForUser($UserData->id);
+        }
 
         $currentUser->refreshSessionPasswordHash($UserData);
 

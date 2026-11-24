@@ -33,11 +33,16 @@ function generateAutoLoginLink($params){
          $dataRequestAppend[] = '/(t)/'.rawurlencode($params['t']);
      }
 
-     $hashValidation = sha1($params['secret_hash'].sha1($params['secret_hash'].implode(',', $dataRequest)));
+     // Expire time is mandatory
+     if (!isset($params['t'])) {
+         throw new Exception('Expire time (t) has to be provided');
+     }
+
+     $hashValidation = hash_hmac('sha256', implode(',', $dataRequest), $params['secret_hash']);
      
      return "index.php/user/autologin/{$hashValidation}".implode('', $dataRequestAppend);
 }
 
 ?>
 
-<a target="_blank" href="http://dev.livehelperchat.com/<?php echo generateAutoLoginLink(array('r' => 'chat/chattabs', 'u' => 1,/* 'l' => 'admin', *//* 't' => time() + 50000 */ 'secret_hash' => '12456456456456fghfghfghfgh'))?>">Login me</a>
+<a target="_blank" href="http://dev.livehelperchat.com/<?php echo generateAutoLoginLink(array('r' => 'chat/chattabs', 'u' => 1,/* 'l' => 'admin', */ 't' => time() + 300, 'secret_hash' => '12456456456456fghfghfghfgh'))?>">Login me</a>
