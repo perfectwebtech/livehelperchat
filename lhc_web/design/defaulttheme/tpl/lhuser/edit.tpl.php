@@ -147,7 +147,7 @@
                    <?php endif;?>
                    <?php if ($user->has_photo) : ?>
                        <div class="form-group">
-                           <img src="<?php echo $user->photo_path?>" alt="" width="50" /><br />
+                           <img src="<?php echo htmlspecialchars($user->photo_path)?>" alt="" width="50" /><br />
                            <label><input type="checkbox" name="DeletePhoto" value="1" /> <?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('user/account','Delete')?></label>
                        </div>
                    <?php endif;?>

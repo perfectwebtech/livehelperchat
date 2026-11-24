@@ -46,6 +46,29 @@ class erLhcoreClassChatWebhookIncoming {
         }
     }
 
+    /**
+     * Removes [html]...[/html] BBCode wrapper from every value of the incoming payload.
+     *
+     * That BBCode is rendered as raw HTML in the back office, so an external system must
+     * never be able to deliver HTML/JavaScript into an operator session.
+     */
+    public static function stripHtmlBBCode($payload)
+    {
+        if (is_array($payload)) {
+            foreach ($payload as $key => $value) {
+                $payload[$key] = self::stripHtmlBBCode($value);
+            }
+
+            return $payload;
+        }
+
+        if (is_string($payload)) {
+            return str_ireplace(array('[html]', '[/html]'), '', $payload);
+        }
+
+        return $payload;
+    }
+
     public static function processMessage($incomingWebhook, $payloadMessage, $payloadAll) {
 
         $conditions = $incomingWebhook->conditions_array;
@@ -1294,7 +1317,7 @@ class erLhcoreClassChatWebhookIncoming {
 
         if (!is_array($url)) {
 
-            $mediaContent = erLhcoreClassModelChatOnlineUser::executeRequest($url, $headers);
+            $mediaContent = erLhcoreClassModelChatOnlineUser::executeRequest($url, $headers, ['deny_local' => true]);
 
             // File name
             $partsFilename = explode('/',strtok($url, '?'));
@@ -1440,6 +1463,36 @@ class erLhcoreClassChatWebhookIncoming {
         $bodyPOST = self::extractMessageBody($params['body_post'], $params['msg'], true);
         $headers = [];
 
+        $URLRequest = self::extractMessageBody($params['url'], $params['msg']);
+
+        $urlParts = parse_url($URLRequest);
+
+        if (!is_array($urlParts) || !isset($urlParts['scheme']) || !in_array(strtolower($urlParts['scheme']), ['http','https'])) {
+            throw new \Exception('Only HTTP/HTTPS are supported!');
+        }
+
+        $host = $urlParts['host'] ?? '';
+        $port = isset($urlParts['port']) ? (int)$urlParts['port'] : (strtolower($urlParts['scheme']) === 'https' ? 443 : 80);
+
+        if ($host === '' || strtolower($host) === 'localhost') {
+            throw new \Exception('Blocked: private destination');
+        }
+
+        // Literal IPs are validated as-is; hostnames are resolved once and then pinned below
+        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+            $resolvedIp = $host;
+        } else {
+            $resolvedIp = gethostbyname($host);
+
+            if ($resolvedIp === $host || filter_var($resolvedIp, FILTER_VALIDATE_IP) === false) {
+                throw new \Exception('Blocked: unresolvable host');
+            }
+        }
+
+        if (filter_var($resolvedIp, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+            throw new \Exception('Blocked: private/reserved IP');
+        }
+
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
@@ -1453,8 +1506,13 @@ class erLhcoreClassChatWebhookIncoming {
             $headers[] ='Content-Type: application/json';
         }
 
-        curl_setopt($ch, CURLOPT_URL, self::extractMessageBody($params['url'], $params['msg']));
-        @curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_URL, $URLRequest);
+
+        // Pin DNS to the validated IP to prevent DNS rebinding / multi-record bypass
+        curl_setopt($ch, CURLOPT_RESOLVE, [$host . ':' . $port . ':' . $resolvedIp]);
+
+        // Redirects would bypass the validated destination
+        @curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
 
         if (isset($params['request_headers']) && trim($params['request_headers']) != '') {
             $paramsHeader = $params['msg'];
