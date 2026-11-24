@@ -9,7 +9,13 @@ $instance = erLhcoreClassSystem::instance();
 if ($instance->SiteAccess != 'site_admin') {
 
     if ($currentUser->isLogged() && !empty($Params['user_parameters_unordered']['r'])) {
-        header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin').'/'.base64_decode(rawurldecode($Params['user_parameters_unordered']['r'])));
+        $redirectPath = base64_decode(rawurldecode($Params['user_parameters_unordered']['r']));
+
+        if (!erLhcoreClassUserUtils::isValidRedirectPath($redirectPath)) {
+            $redirectPath = '';
+        }
+
+        header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin').'/'.ltrim($redirectPath,'/'));
         exit;
     }
 
@@ -103,7 +109,9 @@ if ($data['enabled'] == 1) {
             ));
 
             erLhcoreClassUser::instance()->setLoggedUser($userToLogin->id);
-            header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin').'/'.ltrim($dataRequest['r'],'/'));
+            $redirectPath = isset($dataRequest['r']) && erLhcoreClassUserUtils::isValidRedirectPath($dataRequest['r']) ? $dataRequest['r'] : '';
+
+            header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin').'/'.ltrim($redirectPath,'/'));
             exit;            
         } else {
             die(erTranslationClassLhTranslation::getInstance()->getTranslation('users/autologin','Could not find a provided user'));

@@ -35,7 +35,13 @@ $possibleLoginSiteAccess[] = 'site_admin';
 if (!in_array($instance->SiteAccess, $possibleLoginSiteAccess)) {
 
     if ($currentUser->isLogged() && !empty($Params['user_parameters_unordered']['r'])) {
-        header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin').'/'.base64_decode(rawurldecode($Params['user_parameters_unordered']['r'])));
+        $redirectPath = base64_decode(rawurldecode($Params['user_parameters_unordered']['r']));
+
+        if (!erLhcoreClassUserUtils::isValidRedirectPath($redirectPath)) {
+            $redirectPath = '';
+        }
+
+        header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin').'/'.ltrim($redirectPath,'/'));
         exit;
     }
 
@@ -45,7 +51,13 @@ if (!in_array($instance->SiteAccess, $possibleLoginSiteAccess)) {
     header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin/user/login').$redirectFull );
     exit;
 } elseif ($currentUser->isLogged() && !empty($Params['user_parameters_unordered']['r'])) {
-    header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin').'/'.base64_decode(rawurldecode($Params['user_parameters_unordered']['r'])));
+    $redirectPath = base64_decode(rawurldecode($Params['user_parameters_unordered']['r']));
+
+    if (!erLhcoreClassUserUtils::isValidRedirectPath($redirectPath)) {
+        $redirectPath = '';
+    }
+
+    header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin').'/'.ltrim($redirectPath,'/'));
     exit;
 }
 
@@ -217,11 +229,16 @@ if (isset($_POST['Login']))
                 }
 
                 if ($redirect != '') {
-                    erLhcoreClassModule::redirect(base64_decode($redirect));
-                } else {
-                    erLhcoreClassModule::redirect();
-                    exit;
+                    $redirectPath = base64_decode($redirect);
+
+                    if (erLhcoreClassUserUtils::isValidRedirectPath($redirectPath)) {
+                        erLhcoreClassModule::redirect($redirectPath);
+                        exit;
+                    }
                 }
+
+                erLhcoreClassModule::redirect();
+                exit;
             }
         }
 
