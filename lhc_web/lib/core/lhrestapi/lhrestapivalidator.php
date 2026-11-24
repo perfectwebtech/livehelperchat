@@ -993,7 +993,7 @@ class erLhcoreClassRestAPIHandler
             $json = json_encode($data, $options);
             
             if (isset($_GET['callback'])) {
-                echo $_GET['callback'] . '(' . $json . ')';
+                echo strip_tags($_GET['callback']) . '(' . $json . ')';
             } else {
                 echo $json;
             }
