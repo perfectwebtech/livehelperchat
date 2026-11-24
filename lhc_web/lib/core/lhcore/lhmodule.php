@@ -417,7 +417,7 @@ class erLhcoreClassModule{
 			preg_match_all('/erTranslationClassLhTranslation::getInstance\(\)->getTranslation\(\'(.*?)\',(.*?)\'(.*?)\'\)/i',$contentFile,$Matches);
 			foreach ($Matches[1] as $key => $TranslateContent)
 			{
-				$contentFile = str_replace($Matches[0][$key],'\'' .str_replace("'","\'",erTranslationClassLhTranslation::getInstance()->getTranslation($TranslateContent,$Matches[3][$key])) .'\'',$contentFile);
+				$contentFile = str_replace($Matches[0][$key],var_export(erTranslationClassLhTranslation::getInstance()->getTranslation($TranslateContent,$Matches[3][$key]),true),$contentFile);
 			}
 			
 			$Matches = array();
@@ -492,7 +492,7 @@ class erLhcoreClassModule{
     	            foreach ($Matches[1] as $key => $UrlAddress)
     	            {
     	                $valueConfig = erLhcoreClassModelChatConfig::fetch($Matches[2][$key])->current_value;
-    	                $valueReplace = '\''.str_replace("'","\'",$valueConfig).'\'';
+    	                $valueReplace = var_export((string)$valueConfig,true);
     	                $contentFile = str_replace($Matches[0][$key],$valueReplace,$contentFile);
     	            }
     		            
@@ -514,7 +514,7 @@ class erLhcoreClassModule{
     	                $valueHolder = erLhcoreClassModelChatConfig::fetch($Matches[2][$key])->data;
     	            	$valueConfig = isset($valueHolder[$Matches[4][$key]]) ? $valueHolder[$Matches[4][$key]] : '';
     	            	$valueReplace = '';
-    	            	$valueReplace = '\''.str_replace("'","\'",$valueConfig).'\'';
+    	            	$valueReplace = var_export((string)$valueConfig,true);
     	            	$contentFile = str_replace($Matches[0][$key],$valueReplace,$contentFile);
     	            }
 			    }

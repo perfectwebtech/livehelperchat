@@ -262,7 +262,7 @@ class erLhcoreClassTemplate {
 
 			foreach ($Matches[1] as $key => $TranslateContent)
 			{
-				$contentFile = str_replace($Matches[0][$key],'\''.erTranslationClassLhTranslation::getInstance()->getTranslation($TranslateContent,$Matches[3][$key]).'\'',$contentFile);
+				$contentFile = str_replace($Matches[0][$key],var_export(erTranslationClassLhTranslation::getInstance()->getTranslation($TranslateContent,$Matches[3][$key]),true),$contentFile);
 			}
 
 			// Compile url addresses
@@ -478,8 +478,13 @@ class erLhcoreClassTemplate {
 	            preg_match_all('/<\?php echo erLhcoreClassModelChatConfig::fetch\((\s?)\'([a-zA-Z0-9-\.-\/\_]+)\'(\s?)\)->current_value(.*?)\?\>/i',$contentFile,$Matches);
 	            foreach ($Matches[1] as $key => $UrlAddress)
 	            {
-	                $valueConfig = erLhcoreClassModelChatConfig::fetch($Matches[2][$key])->current_value;             
-	                $contentFile = str_replace($Matches[0][$key],$valueConfig,$contentFile);
+	                $valueConfig = (string)erLhcoreClassModelChatConfig::fetch($Matches[2][$key])->current_value;
+	                // A value is only inlined while it cannot introduce a PHP opening tag, either by itself
+	                // or where it abuts neighbouring template text ("<" inside the value or a leading "?").
+	                // Otherwise it is left uncompiled and echoed at runtime as data.
+	                if (strpos($valueConfig, '<') === false && substr($valueConfig, 0, 1) !== '?') {
+	                    $contentFile = str_replace($Matches[0][$key],$valueConfig,$contentFile);
+	                }
 	            }			
             
 				// Compile config settings in php scripts
@@ -487,9 +492,13 @@ class erLhcoreClassTemplate {
 	            preg_match_all('/erLhcoreClassModelChatConfig::fetch\((\s?)\'([a-zA-Z0-9-\.-\/\_]+)\'(\s?)\)->current_value/i',$contentFile,$Matches);
 	            foreach ($Matches[1] as $key => $UrlAddress)
 	            {
-	                $valueConfig = erLhcoreClassModelChatConfig::fetch($Matches[2][$key])->current_value;
-	                $valueReplace = '';
-	                $valueReplace = '\''.str_replace("'","\'",$valueConfig).'\'';
+	                $valueConfig = (string)erLhcoreClassModelChatConfig::fetch($Matches[2][$key])->current_value;
+	                // Same guard as the whole-block pass: keep the runtime expression for a value that could form a PHP opening tag
+	                if (strpos($valueConfig, '<') !== false || substr($valueConfig, 0, 1) === '?') {
+	                    continue;
+	                }
+	                // var_export() escapes both quotes and backslashes, so the value cannot break out of the string literal
+	                $valueReplace = var_export($valueConfig,true);
 	                $contentFile = str_replace($Matches[0][$key],$valueReplace,$contentFile);
 	            }
             	            
@@ -510,8 +519,7 @@ class erLhcoreClassTemplate {
 	            {
 	            	
 	                $valueConfig = erLhcoreClassModelChatConfig::fetch($Matches[2][$key])->data[$Matches[4][$key]];
-	                $valueReplace = '';
-	                $valueReplace = '\''.str_replace("'","\'",$valueConfig).'\'';
+	                $valueReplace = var_export((string)$valueConfig,true);
 	                $contentFile = str_replace($Matches[0][$key],$valueReplace,$contentFile);
 	            }
 			}
