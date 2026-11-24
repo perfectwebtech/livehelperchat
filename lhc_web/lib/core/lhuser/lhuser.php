@@ -107,6 +107,8 @@ class erLhcoreClassUser{
 		));  
 
 		if ($user === false) {
+            // Dummy verification so response time does not reveal whether the user exists
+            password_verify($password, '$2y$10$TSJv59MKTA7CjWa2EdecfOwsw9omyl1IHMfCLD8x9VuPaFpO4V4m2');
             return false;
 		} else {
             $fieldAuthentificated = $user->email == $username ? 'email' : 'username';
