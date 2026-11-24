@@ -20,7 +20,7 @@ if ( isset($_POST['doDelete']) ) {
 	if ( $form->hasValidData( 'ChatID' ) && !empty($form->ChatID) ) {
 		$chats = erLhcoreClassChat::getList(array('filterin' => array('id' => $form->ChatID)));
 		foreach ($chats as $chatToDelete) {
-			if (erLhcoreClassChat::hasAccessToWrite($chatToDelete) && ($currentUser->hasAccessTo('lhchat','deleteglobalchat') || ($currentUser->hasAccessTo('lhchat','deletechat') && $chatToDelete->user_id == $currentUser->getUserID())))
+			if (erLhcoreClassChat::hasAccessToWrite($chatToDelete) && erLhcoreClassChat::hasAccessToRead($chatToDelete) && ($currentUser->hasAccessTo('lhchat','deleteglobalchat') || ($currentUser->hasAccessTo('lhchat','deletechat') && $chatToDelete->user_id == $currentUser->getUserID())))
 			{
 				$chatToDelete->removeThis();
 			}
@@ -48,7 +48,7 @@ if ( isset($_POST['doClose']) ) {
         $userData = $currentUser->getUserData(true);
 
 		foreach ($chats as $chatToClose) {
-            if (($chatToClose->user_id == $currentUser->getUserID() || $currentUser->hasAccessTo('lhchat','allowcloseremote')) && erLhcoreClassChat::hasAccessToWrite($chatToClose))
+            if (($chatToClose->user_id == $currentUser->getUserID() || $currentUser->hasAccessTo('lhchat','allowcloseremote')) && erLhcoreClassChat::hasAccessToWrite($chatToClose) && erLhcoreClassChat::hasAccessToRead($chatToClose))
             {
                 erLhcoreClassChatHelper::closeChat(array(
                     'user' => $userData,
