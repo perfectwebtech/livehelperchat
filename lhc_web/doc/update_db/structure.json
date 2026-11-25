@@ -1,5 +1,71 @@
 {
   "tables": {
+    "lh_login_throttle": [
+      {
+        "field": "id",
+        "type": "bigint(20)",
+        "null": "NO",
+        "key": "PRI",
+        "default": null,
+        "extra": "auto_increment"
+      },
+      {
+        "field": "type",
+        "type": "int(11)",
+        "null": "NO",
+        "key": "MUL",
+        "default": "",
+        "extra": ""
+      },
+      {
+        "field": "identifier",
+        "type": "varchar(190)",
+        "null": "NO",
+        "key": "",
+        "default": "",
+        "extra": ""
+      },
+      {
+        "field": "attempts",
+        "type": "int(11)",
+        "null": "NO",
+        "key": "",
+        "default": "0",
+        "extra": ""
+      },
+      {
+        "field": "first_attempt",
+        "type": "bigint(20)",
+        "null": "NO",
+        "key": "",
+        "default": "0",
+        "extra": ""
+      },
+      {
+        "field": "last_attempt",
+        "type": "bigint(20)",
+        "null": "NO",
+        "key": "MUL",
+        "default": "0",
+        "extra": ""
+      },
+      {
+        "field": "locked_until",
+        "type": "bigint(20)",
+        "null": "NO",
+        "key": "MUL",
+        "default": "0",
+        "extra": ""
+      },
+      {
+        "field": "lock_count",
+        "type": "int(11)",
+        "null": "NO",
+        "key": "",
+        "default": "0",
+        "extra": ""
+      }
+    ],
     "lh_canned_msg_replace": [
       {
         "field": "id",
@@ -1816,6 +1882,30 @@
       {
         "field": "active",
         "type": "int(11)",
+        "null": "NO",
+        "key": "",
+        "default": "0",
+        "extra": ""
+      },
+      {
+        "field": "scopes",
+        "type": "varchar(2000)",
+        "null": "NO",
+        "key": "",
+        "default": "",
+        "extra": ""
+      },
+      {
+        "field": "expires_at",
+        "type": "varchar(20)",
+        "null": "NO",
+        "key": "",
+        "default": "",
+        "extra": ""
+      },
+      {
+        "field": "last_used",
+        "type": "bigint(20)",
         "null": "NO",
         "key": "",
         "default": "0",
@@ -8607,6 +8697,20 @@
     ],
     "lh_chat_config": [
       {
+        "identifier": "gdpr_retention",
+        "value": "",
+        "type": "0",
+        "explain": "Data retention and anonymisation policy",
+        "hidden": "1"
+      },
+      {
+        "identifier": "sso_oidc",
+        "value": "",
+        "type": "0",
+        "explain": "OpenID Connect single sign-on settings",
+        "hidden": "1"
+      },
+      {
         "identifier": "dashboard_order",
         "value": "[[\"online_operators\",\"departments_stats\",\"online_visitors\"],[\"pending_chats\",\"unread_chats\",\"transfered_chats\"],[\"active_chats\",\"closed_chats\"]]",
         "type": "0",
@@ -8993,7 +9097,7 @@
       },
       {
         "identifier": "export_hash",
-        "value": "qlg55biu",
+        "value": "",
         "type": "0",
         "explain": "Chats export secret hash",
         "hidden": "0"
@@ -10198,6 +10302,7 @@
     "lh_users" : ["active_chats_counter","closed_chats_counter","pending_chats_counter"]
   },
   "tables_collation" : {
+    "lh_login_throttle" : "utf8mb4_unicode_ci",
     "lh_abstract_auto_responder" : "utf8mb4_unicode_ci",
     "lh_abstract_auto_responder_chat" : "utf8mb4_unicode_ci",
     "lh_abstract_browse_offer_invitation" : "utf8mb4_unicode_ci",
@@ -10502,6 +10607,7 @@
     }
   },
   "tables_create": {
+    "lh_login_throttle": "CREATE TABLE `lh_login_throttle` (`id` bigint(20) NOT NULL AUTO_INCREMENT,`type` int(11) NOT NULL,`identifier` varchar(190) NOT NULL,`attempts` int(11) NOT NULL DEFAULT 0,`first_attempt` bigint(20) NOT NULL DEFAULT 0,`last_attempt` bigint(20) NOT NULL DEFAULT 0,`locked_until` bigint(20) NOT NULL DEFAULT 0,`lock_count` int(11) NOT NULL DEFAULT 0,PRIMARY KEY (`id`),UNIQUE KEY `type_identifier` (`type`,`identifier`),KEY `locked_until` (`locked_until`),KEY `last_attempt` (`last_attempt`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
     "lh_abstract_product_departament" : "CREATE TABLE `lh_abstract_product_departament` (  `id` int(11) NOT NULL AUTO_INCREMENT,  `product_id` int(11) NOT NULL,  `departament_id` int(11) NOT NULL,  PRIMARY KEY (`id`),  KEY `departament_id` (`departament_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
     "lh_admin_theme" : "CREATE TABLE `lh_admin_theme` ( `id` int(11) NOT NULL AUTO_INCREMENT, `name` varchar(100) NOT NULL, `static_content` longtext NOT NULL, `static_js_content` longtext NOT NULL, `user_id` int(11) NOT NULL, `static_css_content` longtext NOT NULL, `header_content` text NOT NULL, `header_css` text NOT NULL, PRIMARY KEY (`id`),  KEY `user_id` (`user_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
     "lh_abstract_product" : "CREATE TABLE `lh_abstract_product` (`id` int(11) NOT NULL AUTO_INCREMENT, `name` varchar(250) NOT NULL, `priority` int(11) NOT NULL, `departament_id` int(11) NOT NULL, `disabled` int(11) NOT NULL, KEY `departament_id` (`departament_id`), PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
@@ -10551,7 +10657,7 @@
     "lh_users_setting_option": "CREATE TABLE `lh_users_setting_option` (\n  `identifier` varchar(50) NOT NULL,\n  `class` varchar(50) NOT NULL,\n  `attribute` varchar(40) NOT NULL,\n  PRIMARY KEY (`identifier`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     "lh_cobrowse": "CREATE TABLE `lh_cobrowse` ( `id` int(11) NOT NULL AUTO_INCREMENT, `chat_id` int(11) NOT NULL, `mtime` int(11) NOT NULL, `url` varchar(250) NOT NULL, `initialize` longtext NOT NULL, `modifications` longtext NOT NULL, `finished` tinyint(1) NOT NULL, `w` int(11) NOT NULL, `wh` int(11) NOT NULL, `x` int(11) NOT NULL, `y` int(11) NOT NULL,  PRIMARY KEY (`id`),  KEY `chat_id` (`chat_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     "lh_chat_paid": "CREATE TABLE `lh_chat_paid` ( `id` int(11) NOT NULL AUTO_INCREMENT,  `hash` varchar(250) NOT NULL,  `chat_id` int(11) NOT NULL,  PRIMARY KEY (`id`),  KEY `hash` (`hash`(191)),  KEY `chat_id` (`chat_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
-    "lh_abstract_rest_api_key": "CREATE TABLE `lh_abstract_rest_api_key` (  `id` int(11) NOT NULL AUTO_INCREMENT,  `api_key` varchar(50) NOT NULL,  `user_id` int(11) NOT NULL,  `active` int(11) NOT NULL DEFAULT '0',  PRIMARY KEY (`id`),  KEY `user_id` (`user_id`),  KEY `api_key_active` (`api_key`,`active`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    "lh_abstract_rest_api_key": "CREATE TABLE `lh_abstract_rest_api_key` (  `id` int(11) NOT NULL AUTO_INCREMENT,  `api_key` varchar(50) NOT NULL,  `user_id` int(11) NOT NULL,  `active` int(11) NOT NULL DEFAULT '0',  `scopes` varchar(2000) NOT NULL DEFAULT '',  `expires_at` varchar(20) NOT NULL DEFAULT '',  `last_used` bigint(20) NOT NULL DEFAULT 0,  PRIMARY KEY (`id`),  KEY `user_id` (`user_id`),  KEY `api_key_active` (`api_key`,`active`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     "lh_abstract_rest_api_key_remote": "CREATE TABLE `lh_abstract_rest_api_key_remote` (  `id` int(11) NOT NULL AUTO_INCREMENT,  `api_key` varchar(50) NOT NULL, `username` varchar(50) NOT NULL, `name` varchar(50) NOT NULL,  `host` varchar(250) NOT NULL, `active` tinyint(1) NOT NULL DEFAULT '0', `position` int(11) NOT NULL DEFAULT '0',  PRIMARY KEY (`id`), KEY `active` (`active`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     "lh_departament_group_user": "CREATE TABLE `lh_departament_group_user` (\n  `id` int(11) NOT NULL AUTO_INCREMENT,\n  `dep_group_id` int(11) NOT NULL,\n  `user_id` int(11) NOT NULL,\n  `read_only` tinyint(1) unsigned NOT NULL DEFAULT 0,\n  `exc_indv_autoasign` tinyint(1) unsigned NOT NULL DEFAULT 0,\n  `assign_priority` int(11) unsigned NOT NULL DEFAULT 0,\n  `chat_min_priority` int(11) unsigned NOT NULL DEFAULT 0,\n  `chat_max_priority` int(11) unsigned NOT NULL DEFAULT 0,\n  PRIMARY KEY (`id`),\n  KEY `dep_group_id` (`dep_group_id`),\n  KEY `user_id` (`user_id`)\n) ENGINE=InnoDB AUTO_INCREMENT=382 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci\n",
     "lh_departament_group_member": "CREATE TABLE `lh_departament_group_member` (  `id` int(11) NOT NULL AUTO_INCREMENT,  `dep_id` int(11) NOT NULL,  `dep_group_id` int(11) NOT NULL,  PRIMARY KEY (`id`),  KEY `dep_group_id` (`dep_group_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",

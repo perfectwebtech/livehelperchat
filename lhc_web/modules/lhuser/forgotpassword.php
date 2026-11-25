@@ -65,9 +65,11 @@ if (isset($_POST['Forgotpassword'])) {
 
 			$UserData = erLhcoreClassUser::getSession()->load( 'erLhcoreClassModelUser', $userID );
 
+			erLhcoreClassModelForgotPassword::deleteExpiredHashes();
+
 			$hash = erLhcoreClassModelForgotPassword::randomPassword(40);
 
-			erLhcoreClassModelForgotPassword::setRemindHash($UserData->id,$hash);
+			if (erLhcoreClassModelForgotPassword::setRemindHash($UserData->id,$hash)) {
 
 			$mail = new PHPMailer();
 			$mail->CharSet = "UTF-8";
@@ -91,9 +93,13 @@ if (isset($_POST['Forgotpassword'])) {
 			$mail->Send();
 			$mail->ClearAddresses();
 
+			} // end setRemindHash check
+
 			$tpl = erLhcoreClassTemplate::getInstance( 'lhuser/forgotpasswordsent.tpl.php');
 
 		} else {
+            // Constant-time response: random delay between 2 and 3 seconds to match the time taken when a user is found and an e-mail is sent
+            usleep(random_int(2000000, 3000000));
             $tpl = erLhcoreClassTemplate::getInstance( 'lhuser/forgotpasswordsent.tpl.php');
 		}
 

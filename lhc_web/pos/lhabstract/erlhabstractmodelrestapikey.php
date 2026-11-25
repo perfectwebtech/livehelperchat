@@ -29,6 +29,21 @@ $def->properties['ip_restrictions']->columnName   = 'ip_restrictions';
 $def->properties['ip_restrictions']->propertyName = 'ip_restrictions';
 $def->properties['ip_restrictions']->propertyType = ezcPersistentObjectProperty::PHP_TYPE_STRING;
 
+$def->properties['scopes'] = new ezcPersistentObjectProperty();
+$def->properties['scopes']->columnName   = 'scopes';
+$def->properties['scopes']->propertyName = 'scopes';
+$def->properties['scopes']->propertyType = ezcPersistentObjectProperty::PHP_TYPE_STRING;
+
+$def->properties['expires_at'] = new ezcPersistentObjectProperty();
+$def->properties['expires_at']->columnName   = 'expires_at';
+$def->properties['expires_at']->propertyName = 'expires_at';
+$def->properties['expires_at']->propertyType = ezcPersistentObjectProperty::PHP_TYPE_STRING;
+
+$def->properties['last_used'] = new ezcPersistentObjectProperty();
+$def->properties['last_used']->columnName   = 'last_used';
+$def->properties['last_used']->propertyName = 'last_used';
+$def->properties['last_used']->propertyType = ezcPersistentObjectProperty::PHP_TYPE_INT;
+
 return $def;
 
 ?>

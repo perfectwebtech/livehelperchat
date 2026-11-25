@@ -127,6 +127,8 @@ if ( $ignorable_ip == '' || !erLhcoreClassIPDetect::isIgnored(erLhcoreClassIPDet
 
     if ($userInstance !== false) {
 
+        $outputResponse['vid'] = $userInstance->vid;
+
         if (erLhcoreClassModelChatConfig::fetch('track_footprint')->current_value == 1 && erLhcoreClassModelChatOnlineUser::getReferer() != '') {
             erLhcoreClassModelChatOnlineUserFootprint::addPageView($userInstance);
         }

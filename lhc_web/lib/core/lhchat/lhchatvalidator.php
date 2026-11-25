@@ -6,6 +6,64 @@
 
 class erLhcoreClassChatValidator {
 
+    /**
+     * Rejects any URL that uses a scheme other than http/https.
+     * Relative and protocol-relative URLs (which have no scheme) are allowed through.
+     * Prevents javascript:, data:, vbscript: etc. from being rendered into a link.
+     */
+    public static function sanitizeUrl($url)
+    {
+        $url = trim((string)$url);
+
+        if ($url === '') {
+            return '';
+        }
+
+        // Remove control characters and spaces browsers ignore within a scheme (e.g. "java\tscript:")
+        $probe = preg_replace('/[\x00-\x20]+/', '', $url);
+
+        if (preg_match('/^([a-zA-Z][a-zA-Z0-9+.\-]*):/', $probe, $matches)) {
+            if (!in_array(strtolower($matches[1]), array('http', 'https'), true)) {
+                return '';
+            }
+        }
+
+        return $url;
+    }
+
+    /**
+     * Returns the HTTP referer only when it targets the same host as the current
+     * request, otherwise falls back to the application base URL. Prevents open
+     * redirects via a manipulated Referer header.
+     */
+    public static function getSafeReferer($fallback = null)
+    {
+        if ($fallback === null) {
+            $fallback = erLhcoreClassDesign::baseurl('/');
+        }
+
+        if (!isset($_SERVER['HTTP_REFERER']) || $_SERVER['HTTP_REFERER'] === '') {
+            return $fallback;
+        }
+
+        $referer = $_SERVER['HTTP_REFERER'];
+        $refererHost = parse_url($referer, PHP_URL_HOST);
+
+        // A referer without a host is only accepted as a plain absolute path (not //host or a scheme)
+        if ($refererHost === null) {
+            return (strpos($referer, '/') === 0 && strpos($referer, '//') !== 0) ? $referer : $fallback;
+        }
+
+        $currentHost = isset($_SERVER['HTTP_HOST']) ? preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST']) : '';
+        $refererHost = preg_replace('/:\d+$/', '', (string)$refererHost);
+
+        if ($currentHost !== '' && strcasecmp($currentHost, $refererHost) === 0) {
+            return $referer;
+        }
+
+        return $fallback;
+    }
+
     public static function validateChatModifyCore(& $chat)
     {
         $definition = array(
@@ -337,7 +395,9 @@ class erLhcoreClassChatValidator {
             } elseif ( $form->hasValidData( 'Email' ) ) {
                 $chat->email = $inputForm->email = $form->Email;
             } else {
-                $chat->email = $inputForm->email = isset($_POST['Email']) ? $_POST['Email'] : '';
+                // Invalid e-mail submitted while the field is optional. Never persist the raw
+                // value - it is later rendered into the operator's mailto: link. Keep it empty.
+                $chat->email = $inputForm->email = '';
             }
         }
         
@@ -1851,8 +1911,8 @@ class erLhcoreClassChatValidator {
                 $params['chat']->lsync = time();
                 $params['chat']->status = erLhcoreClassModelChat::STATUS_PENDING_CHAT;
                 $params['chat']->hash = erLhcoreClassChat::generateHash();
-                $params['chat']->referrer = isset($_POST['URLRefer']) ? $_POST['URLRefer'] : '';
-                $params['chat']->session_referrer = isset($_POST['r']) ? $_POST['r'] : '';
+                $params['chat']->referrer = self::sanitizeUrl(isset($_POST['URLRefer']) ? $_POST['URLRefer'] : '');
+                $params['chat']->session_referrer = self::sanitizeUrl(isset($_POST['r']) ? $_POST['r'] : '');
             }
 
             $params['chat']->status_sub = erLhcoreClassModelChat::STATUS_SUB_OFFLINE_REQUEST;
@@ -1861,7 +1921,7 @@ class erLhcoreClassChatValidator {
                 $params['chat']->nick = erTranslationClassLhTranslation::getInstance()->getTranslation('chat/startchat','Visitor');
             }
 
-            if ( empty($params['chat']->email) && isset($params['input_data']) && $params['input_data']->email != '') {
+            if ( empty($params['chat']->email) && isset($params['input_data']) && $params['input_data']->email != '' && filter_var($params['input_data']->email, FILTER_VALIDATE_EMAIL)) {
                 $params['chat']->email = $params['input_data']->email;
             }
 
@@ -2138,12 +2198,12 @@ class erLhcoreClassChatValidator {
 
                 if (isset($_GET['URLReferer']))
                 {
-                    $chat->referrer = $_GET['URLReferer'];
+                    $chat->referrer = self::sanitizeUrl($_GET['URLReferer']);
                 }
 
                 if (isset($_GET['r']))
                 {
-                    $chat->session_referrer = $_GET['r'];
+                    $chat->session_referrer = self::sanitizeUrl($_GET['r']);
                 }
 
                 $nick = trim($chat->nick);

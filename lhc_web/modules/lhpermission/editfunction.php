@@ -29,6 +29,8 @@ if (ezcInputForm::hasPostData())
     $Function->limitation = $form->Limitation;
     $Function->saveThis();
 
+    erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_ROLE, 'limitation', array('role_id' => (int)$Function->role_id, 'module' => $Function->module, 'function' => $Function->function, 'limitation' => $Function->limitation), $Function->role_id);
+
     erLhcoreClassAdminChatValidatorHelper::clearUsersCache();
 
     if (isset($_POST['Update_action'])) {

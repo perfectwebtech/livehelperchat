@@ -13,7 +13,9 @@
     <?php include(erLhcoreClassDesign::designtpl('lhkernel/validation_error.tpl.php'));?>
 <?php endif;?>
 
-<form id="form-start-chat" method="post" action="<?php echo erLhcoreClassDesign::baseurl('user/login')?>">
+<?php include(erLhcoreClassDesign::designtpl('lhsso/login_button.tpl.php'));?>
+<?php $localLogin = isset($local_login) && $local_login === true; $hidePasswordForm = !$localLogin && erLhcoreClassSsoOidc::isEnabled() && erLhcoreClassSsoOidc::getSettings()['force_sso'] == 1; ?>
+<form id="form-start-chat" method="post" action="<?php echo erLhcoreClassDesign::baseurl('user/login')?><?php if ($localLogin) : ?>/(local)/1<?php endif; ?>"<?php if ($hidePasswordForm) : ?> style="display:none"<?php endif; ?>>
 
 <?php if (isset($crossdomain) && $crossdomain == true) : ?>
     <input type="hidden" name="cookie" value="crossdomain" />

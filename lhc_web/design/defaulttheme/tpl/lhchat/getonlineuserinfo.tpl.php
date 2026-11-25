@@ -3,7 +3,7 @@
 <?php include(erLhcoreClassDesign::designtpl('lhkernel/modal_header.tpl.php'));?>
 <?php endif; ?>
 
-<a href="<?php echo htmlspecialchars(trim($online_user->current_page))?>" class="no-wrap fs12"><?php echo htmlspecialchars(trim($online_user->referrer))?></a>
+<a rel="noopener" target="_blank" href="<?php echo htmlspecialchars(trim(erLhcoreClassChatValidator::sanitizeUrl($online_user->current_page)))?>" class="no-wrap fs12"><?php echo htmlspecialchars(trim($online_user->referrer))?></a>
 
 <div class="online-user-info">
     <div role="tabpanel">
@@ -60,7 +60,7 @@
                     <ul class="foot-print-content list-unstyled mb-0" style="max-height: 170px;">
                     <?php foreach (erLhcoreClassModelChatOnlineUserFootprint::getList(array('filter' => array('online_user_id' => $online_user->id))) as $footprintItems) : ?>
                     <li>
-                    <a target="_blank" rel="noopener" href="<?php echo htmlspecialchars($footprintItems->page);?>"><?php echo $footprintItems->time_ago?> | <?php echo htmlspecialchars($footprintItems->page);?></a>
+                    <a target="_blank" rel="noopener" href="<?php echo htmlspecialchars(erLhcoreClassChatValidator::sanitizeUrl($footprintItems->page));?>"><?php echo $footprintItems->time_ago?> | <?php echo htmlspecialchars($footprintItems->page);?></a>
                     </li>
                     <?php endforeach;?>
                     </ul>

@@ -1,5 +1,6 @@
 <?php
 
+#[\AllowDynamicProperties]
 class erLhcoreClassModelChatOnlineUser
 {
     use erLhcoreClassDBTrait;
@@ -386,8 +387,58 @@ class erLhcoreClassModelChatOnlineUser
         }
     }
 
-    public static function executeRequest($url, $headers = [])
+    /**
+     * Validates that URL is http/https and points to a public destination.
+     * Returns pin entry (host:port:ip) for CURLOPT_RESOLVE so the validated IP is used.
+     */
+    private static function validateRequestUrl($url)
     {
+        $urlParts = parse_url($url);
+
+        if (!is_array($urlParts) || !isset($urlParts['scheme']) || !in_array(strtolower($urlParts['scheme']), ['http','https'])) {
+            throw new \Exception('Only HTTP/HTTPS are supported!');
+        }
+
+        $host = $urlParts['host'] ?? '';
+        $port = isset($urlParts['port']) ? (int)$urlParts['port'] : (strtolower($urlParts['scheme']) === 'https' ? 443 : 80);
+
+        if ($host === '' || strtolower($host) === 'localhost') {
+            throw new \Exception('Blocked: private destination');
+        }
+
+        // Literal IPs are validated as-is; hostnames are resolved once
+        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+            $resolvedIp = $host;
+        } else {
+            $resolvedIp = gethostbyname($host);
+
+            if ($resolvedIp === $host || filter_var($resolvedIp, FILTER_VALIDATE_IP) === false) {
+                throw new \Exception('Blocked: unresolvable host');
+            }
+        }
+
+        if (filter_var($resolvedIp, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+            throw new \Exception('Blocked: private/reserved IP');
+        }
+
+        return $host . ':' . $port . ':' . $resolvedIp;
+    }
+
+    public static function executeRequest($url, $headers = [], $paramsExecution = [])
+    {
+        $urlParts = parse_url($url);
+
+        if (!is_array($urlParts) || !isset($urlParts['scheme']) || !in_array(strtolower($urlParts['scheme']), ['http','https'])) {
+            throw new \Exception('Only HTTP/HTTPS are supported!');
+        }
+
+        $denyLocal = isset($paramsExecution['deny_local']) && $paramsExecution['deny_local'] === true;
+
+        // Resolve hostname and reject private/loopback destinations
+        if ($denyLocal === true) {
+            $pinEntry = self::validateRequestUrl($url);
+        }
+
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -396,11 +447,44 @@ class erLhcoreClassModelChatOnlineUser
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         curl_setopt($ch, CURLOPT_USERAGENT, 'curl/7.29.0');
-        @curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); // Some hostings produces wargning...
+
+        if ($denyLocal === true) {
+            // Pin DNS to the validated IP to prevent DNS rebinding / multi-record bypass
+            curl_setopt($ch, CURLOPT_RESOLVE, [$pinEntry]);
+        }
+
+        // With deny_local redirects are followed manually below so each destination is validated
+        @curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $denyLocal === false); // Some hostings produces wargning...
         if (!empty($headers)) {
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         }
         $content = curl_exec($ch);
+
+        if ($denyLocal === true) {
+            // Manually handle redirects with SSRF validation
+            $maxRedirects = 5;
+            $redirectCount = 0;
+            $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+            while (in_array($statusCode, [301, 302, 303, 307, 308]) && $redirectCount < $maxRedirects) {
+                $redirectUrl = curl_getinfo($ch, CURLINFO_REDIRECT_URL);
+
+                if (empty($redirectUrl)) {
+                    break;
+                }
+
+                // Re-validate redirect URL and pin its resolved IP
+                $pinEntry = self::validateRequestUrl($redirectUrl);
+                curl_setopt($ch, CURLOPT_RESOLVE, [$pinEntry]);
+
+                // Clear headers on redirect so credentials are not sent to another host
+                curl_setopt($ch, CURLOPT_HTTPHEADER, []);
+                curl_setopt($ch, CURLOPT_URL, $redirectUrl);
+                $content = curl_exec($ch);
+                $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $redirectCount++;
+            }
+        }
 
         return $content;
     }
@@ -702,9 +786,9 @@ class erLhcoreClassModelChatOnlineUser
 
     public static function getReferer(){
         if (isset($_SERVER['HTTP_REFERER']) && !empty($_SERVER['HTTP_REFERER'])) {
-            return $_SERVER['HTTP_REFERER'];
+            return erLhcoreClassChatValidator::sanitizeUrl($_SERVER['HTTP_REFERER']);
         } elseif (isset($_SERVER['HTTP_ORIGIN']) && $_SERVER['HTTP_ORIGIN'] != '') {
-            return $_SERVER['HTTP_ORIGIN'];
+            return erLhcoreClassChatValidator::sanitizeUrl($_SERVER['HTTP_ORIGIN']);
         }
 
         return '';
@@ -783,7 +867,7 @@ class erLhcoreClassModelChatOnlineUser
                     $item->ip = isset($paramsHandle['ip']) ? $paramsHandle['ip'] : erLhcoreClassIPDetect::getIP();
                     $item->vid = mb_substr($paramsHandle['vid'],0,50);
                     $item->identifier = (isset($paramsHandle['identifier']) && !empty($paramsHandle['identifier'])) ? $paramsHandle['identifier'] : '';
-                    $item->referrer = isset($_GET['r']) ? rawurldecode($_GET['r']) : '';
+                    $item->referrer = erLhcoreClassChatValidator::sanitizeUrl(isset($_GET['r']) ? rawurldecode($_GET['r']) : '');
                     $item->total_visits = 1;
                     $item->last_visit_prev = time();
 
@@ -814,6 +898,10 @@ class erLhcoreClassModelChatOnlineUser
             } else {
                 erLhcoreClassChatCleanup::cleanupOnlineUsers();
                 return false;
+            }
+
+            if (strlen($item->vid) <= 20) {
+                $item->vid = bin2hex(random_bytes(16));
             }
 
             $ip = isset($paramsHandle['ip']) ? $paramsHandle['ip'] : erLhcoreClassIPDetect::getIP();
@@ -936,7 +1024,7 @@ class erLhcoreClassModelChatOnlineUser
                 $item->user_agent = isset($_POST['ua']) ? $_POST['ua'] : (isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '');
                 $location = isset($_POST['l']) ? $_POST['l'] : (isset($_GET['l']) ? rawurldecode($_GET['l']) : ($item->current_page == '' ? self::getReferer() : null));
                 if ($location !== null) {
-                    $item->current_page = $location;
+                    $item->current_page = erLhcoreClassChatValidator::sanitizeUrl($location);
                 }
                 $item->page_title = isset($_POST['dt']) ? $_POST['dt'] : (isset($_GET['dt']) ? substr((string)rawurldecode($_GET['dt']),0,250) : '');
                 $item->last_visit = time();

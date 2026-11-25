@@ -6,12 +6,12 @@ $ViewList = array();
 
 $ViewList['login'] = array(
     'params' => array(),
-    'uparams' => array('r','external_request','noaccess'),
+    'uparams' => array('r','external_request','noaccess','local'),
 );
 
 $ViewList['autologin'] = array(
     'params' => array('hash'),
-    'uparams' => array('r','u','l','t'),
+    'uparams' => array('r','u','l','t','n'),
 );
 
 $ViewList['autologinuser'] = array(

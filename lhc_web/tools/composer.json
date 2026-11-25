@@ -1,0 +1,11 @@
+{
+    "description": "Development-only tooling for Live Helper Chat (static analysis and tests). Kept separate from the application composer.json so production dependencies and lock file are untouched.",
+    "require-dev": {
+        "phpstan/phpstan": "^1.12",
+        "phpunit/phpunit": "^9.6"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": false
+    }
+}

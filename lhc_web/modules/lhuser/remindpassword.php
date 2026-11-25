@@ -6,6 +6,8 @@ $hash = $Params['user_parameters']['hash'];
 
 if ($hash != '') {
 
+    erLhcoreClassModelForgotPassword::deleteExpiredHashes();
+
     $hashData = erLhcoreClassModelForgotPassword::checkHash($hash);
 
     if ($hashData) {
@@ -39,6 +41,9 @@ if ($hash != '') {
 
                 $UserData->setPassword($newPassword);
                 erLhcoreClassUser::getSession()->update($UserData);
+
+                // Password rotation has to rotate the REST API tokens as well
+                erLhcoreClassModelUserSession::revokeForUser($UserData->id);
 
                 erLhcoreClassModelForgotPassword::deleteHash($hashData['user_id']);
 
@@ -83,6 +88,9 @@ if ($hash != '') {
 
                         $UserData->setPassword($UserData->password_front);
                         erLhcoreClassUser::getSession()->update($UserData);
+
+                        // Password rotation has to rotate the REST API tokens as well
+                        erLhcoreClassModelUserSession::revokeForUser($UserData->id);
 
                         erLhcoreClassModelForgotPassword::deleteHash($hashData['user_id']);
                     } else {

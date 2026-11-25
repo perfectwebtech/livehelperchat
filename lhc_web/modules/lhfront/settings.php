@@ -8,7 +8,7 @@ if ($Params['user_parameters_unordered']['action'] == 'reset') {
     }
 
     erLhcoreClassModelUserSetting::setSetting('dw_filters', '{}', false, true);
-    header('Location: ' . $_SERVER['HTTP_REFERER']);
+    header('Location: ' . erLhcoreClassChatValidator::getSafeReferer());
     exit;
 }
 

@@ -7,6 +7,11 @@ if (!$currentUser->validateCSFRToken($Params['user_parameters_unordered']['csfr'
 	exit;
 }
 
+if (!preg_match('/^[a-zA-Z0-9_]+$/', (string)$Params['user_parameters']['identifier'])) {
+	die('Invalid object identifier');
+	exit;
+}
+
 $ObjectData = erLhcoreClassAbstract::getSession()->load( 'erLhAbstractModel'.$Params['user_parameters']['identifier'], (int)$Params['user_parameters']['object_id'] );
 
 $object_trans = $ObjectData->getModuleTranslations();

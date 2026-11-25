@@ -1081,7 +1081,14 @@ class erLhcoreClassUserValidator {
         }
 
         if ( $form->hasValidData( 'field' )) {
-            $settings['field'] = $form->field;
+            // Only attributes offered by the import form may be mapped. Without this
+            // any model property (e.g. filepath/filename) could be set from the import.
+            $importFields = array(
+                'username','password','email','name','surname','chat_nickname','disabled',
+                'hide_online','all_departments','skype','job_title','time_zone','invisible_mode',
+                'auto_accept','max_active_chats','show_all_pending'
+            );
+            $settings['field'] = array_intersect_key($form->field, array_flip($importFields));
         } else {
             $settings['field'] = array();
         }
@@ -1121,11 +1128,13 @@ class erLhcoreClassUserValidator {
             }
 
             $maxActiveChats = null;
+            $passwordChanged = false;
 
             foreach ($configuration['field'] as $attr => $index) {
                 if (is_numeric($index) && $index > 0 && isset($RowData[$configuration['field'][$attr]-1])) {
                     if ($attr == 'password') {
                         $user->setPassword($RowData[$index - 1]);
+                        $passwordChanged = true;
                     } elseif ($attr == 'all_departments') {
                         $allDepartments = $RowData[$index-1] == 1;
                     } elseif ($attr == 'max_active_chats') {
@@ -1139,6 +1148,11 @@ class erLhcoreClassUserValidator {
             }
 
             $user->saveThis();
+
+            // Imported password rotation has to rotate the REST API tokens as well
+            if ($passwordChanged === true) {
+                erLhcoreClassModelUserSession::revokeForUser($user->id);
+            }
 
             if (isset($show_all_pending)) {
                 erLhcoreClassModelUserSetting::setSetting('show_all_pending', (int)$show_all_pending, $user->id);

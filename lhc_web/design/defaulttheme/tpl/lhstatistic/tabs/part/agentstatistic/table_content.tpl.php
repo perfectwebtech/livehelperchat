@@ -1,4 +1,4 @@
-<td><?php echo $info->agentName; ?></td>
+<td><?php echo htmlspecialchars($info->agentName); ?></td>
 <td><a href="<?php echo erLhcoreClassDesign::baseurl('chat/list')?><?php echo isset($input) ? erLhcoreClassSearchHandler::getURLAppendFromInput($input,false,array('user_ids')) : ''?>/(user_ids)/<?php echo $info->userId?>"><?php echo $info->numberOfChats; ?></a></td>
 <?php if (is_array($input->subject_ids) && !empty($input->subject_ids)) : ?>
     <?php foreach ($input->subject_ids as $subjectId) : ?>

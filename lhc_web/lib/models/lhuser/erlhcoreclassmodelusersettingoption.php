@@ -1,5 +1,6 @@
 <?php
 
+#[\AllowDynamicProperties]
 class erLhcoreClassModelUserSettingOption {
 
    public function getState()

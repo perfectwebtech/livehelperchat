@@ -11,6 +11,7 @@ return array (
                     'installed' => false,
                     'secrethash' => '',
                     'debug_output' => false,
+                    'log_errors' => false,
                     'log_slow_request' => false,
                     'templatecache' => false,
                     'templatecompile' => false,
@@ -20,6 +21,9 @@ return array (
                     'disable_rest_api_by_user' => false,
                     'one_login_per_account' => false,
                     'php_session_cookie_name' => '',
+                    'health_token' => '', // optional: /index.php/system/health?token=... returns per-check details without a login
+                    'metrics_token' => '', // enables /index.php/system/metrics (Prometheus); send as "Authorization: Bearer <token>"
+                    'hsts_max_age' => 0, // seconds; > 0 sends Strict-Transport-Security on HTTPS responses
                     'time_zone' => '',
                     'date_format' => 'Y-m-d',
                     'date_hour_format' => 'H:i:s',
@@ -31,6 +35,12 @@ return array (
                     'site_address' => '',
                     'trusted_host_patterns' => [
                     ],
+                    'rest_api_limit' => array(
+                        'deny_local' => false, // true blocks bot REST API requests to localhost and private/reserved IP ranges
+                        'allow_host' => [
+                            // E.g '127.0.0.1' (any port) or '127.0.0.1:990' (that port only)
+                        ]
+                    ),
                     'extensions' =>
                         array (
                             // 0 => 'customstatus',

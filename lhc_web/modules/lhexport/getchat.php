@@ -8,12 +8,14 @@ $hashSecret = erLhcoreClassModelChatConfig::fetch('export_hash')->current_value;
 try {
 
     if (strlen($hashSecret) < 50) {
-        throw new Exception('Export hash to short!');
+        throw new Exception('Export hash is empty or too short!');
     }
 
 	if ( sha1('getchat'.$hashSecret) == $hash ) {
 
 		$chat = erLhcoreClassModelChat::fetch((string)$Params['user_parameters']['chat_id']);
+
+		erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_CHAT_EXPORT, 'api_chat', array('format' => $format, 'chat_id' => (int)$Params['user_parameters']['chat_id']), (int)$Params['user_parameters']['chat_id']);
 
 		if ($format =='json') {
 				header('Content-type: application/json');

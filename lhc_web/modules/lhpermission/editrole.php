@@ -36,6 +36,8 @@ if (isset($_POST['Update_role']))
         $Role->name = $form->Name;
         erLhcoreClassRole::getSession()->update($Role);
 
+        erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_ROLE, 'rename', array('role_id' => (int)$Role->id, 'name' => $Role->name), $Role->id);
+
         erLhcoreClassModule::redirect('permission/roles');
         exit ;
 
@@ -100,6 +102,8 @@ if (isset($_POST['Store_policy']))
             }
 
     		erLhcoreClassRole::getSession()->save($RoleFunction);
+
+            erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_ROLE, 'grant', array('role_id' => (int)$RoleFunction->role_id, 'module' => $RoleFunction->module, 'function' => $RoleFunction->function, 'limitation' => $RoleFunction->limitation), $RoleFunction->role_id);
 
             erLhcoreClassAdminChatValidatorHelper::clearUsersCache();
 

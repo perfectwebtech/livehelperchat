@@ -18,7 +18,7 @@ $isExternalRequest = (isset($Params['user_parameters_unordered']['external_reque
 $currentUser = erLhcoreClassUser::instance();
 
 // We want cookie to be cross domain
-if ($currentUser->isLogged() && $crossDomainCookie === true && isset($_GET['ts']) && isset($_GET['token']) && ($_GET['ts'] > time() - 10 * 60) && sha1(erConfigClassLhConfig::getInstance()->getSetting( 'site', 'secrethash' ).sha1(erConfigClassLhConfig::getInstance()->getSetting( 'site', 'secrethash' ).'_external_login_' . $_GET['ts'])) == $_GET['token']) {
+if ($currentUser->isLogged() && $crossDomainCookie === true && isset($_GET['ts']) && isset($_GET['token']) && ($_GET['ts'] > time() - 10 * 60) && hash_hmac('sha256', '_external_login_' . $_GET['ts'], erConfigClassLhConfig::getInstance()->getSetting( 'site', 'secrethash' )) == $_GET['token']) {
     $currentUser->logout();
     header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin/user/login').'?cookie=crossdomain&logout=1');
     exit;
@@ -35,7 +35,13 @@ $possibleLoginSiteAccess[] = 'site_admin';
 if (!in_array($instance->SiteAccess, $possibleLoginSiteAccess)) {
 
     if ($currentUser->isLogged() && !empty($Params['user_parameters_unordered']['r'])) {
-        header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin').'/'.base64_decode(rawurldecode($Params['user_parameters_unordered']['r'])));
+        $redirectPath = base64_decode(rawurldecode($Params['user_parameters_unordered']['r']));
+
+        if (!erLhcoreClassUserUtils::isValidRedirectPath($redirectPath)) {
+            $redirectPath = '';
+        }
+
+        header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin').'/'.ltrim($redirectPath,'/'));
         exit;
     }
 
@@ -45,11 +51,20 @@ if (!in_array($instance->SiteAccess, $possibleLoginSiteAccess)) {
     header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin/user/login').$redirectFull );
     exit;
 } elseif ($currentUser->isLogged() && !empty($Params['user_parameters_unordered']['r'])) {
-    header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin').'/'.base64_decode(rawurldecode($Params['user_parameters_unordered']['r'])));
+    $redirectPath = base64_decode(rawurldecode($Params['user_parameters_unordered']['r']));
+
+    if (!erLhcoreClassUserUtils::isValidRedirectPath($redirectPath)) {
+        $redirectPath = '';
+    }
+
+    header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin').'/'.ltrim($redirectPath,'/'));
     exit;
 }
 
 $tpl = erLhcoreClassTemplate::getInstance( 'lhuser/login.tpl.php');
+
+// Break-glass local login (/(local)/1) keeps the password form visible when single sign-on hides it.
+$tpl->set('local_login', isset($Params['user_parameters_unordered']['local']) && $Params['user_parameters_unordered']['local'] == 1);
 $tpl->set('crossdomain',$crossDomainCookie);
 
 $redirect = '';
@@ -94,7 +109,15 @@ if (isset($_POST['Login']))
 
         $valid = true;
 
-        if (is_array($recaptchaData) && isset($recaptchaData['enabled']) && $recaptchaData['enabled'] == 1) {
+        // Brute-force protection: reject the attempt before any credential check if this IP or account is locked.
+        $throttleIp = erLhcoreClassIPDetect::getIP();
+        $throttleRetryAfter = erLhcoreClassLoginThrottle::getRetryAfter($throttleIp, isset($_POST['Username']) ? $_POST['Username'] : '');
+
+        if ($throttleRetryAfter > 0) {
+            $valid = false;
+        }
+
+        if ($valid == true && is_array($recaptchaData) && isset($recaptchaData['enabled']) && $recaptchaData['enabled'] == 1) {
            $params = [
                 'secret' 	=> $recaptchaData['secret_key'],
                 'response' 	=> $_POST['g-recaptcha']
@@ -121,7 +144,9 @@ if (isset($_POST['Login']))
 
         if ($valid == false || !$currentUser->authenticate($_POST['Username'], $_POST['Password'], isset($_POST['rememberMe']) && $_POST['rememberMe'] == 1 ? true : false))
         {
-            if ($valid == false) {
+            if ($throttleRetryAfter > 0) {
+                $Error = erLhcoreClassLoginThrottle::getLockedMessage($throttleRetryAfter);
+            } elseif ($valid == false) {
                 $Error = erTranslationClassLhTranslation::getInstance()->getTranslation('user/login','Google re-captcha validation failed');
             } else {
 
@@ -140,6 +165,13 @@ if (isset($_POST['Login']))
 
                     erLhcoreClassModelUserLogin::disableIfRequired($userAttempt);
                 }
+
+                // Count the failure against the IP and the username, whether or not the account exists.
+                $throttleLockedFor = erLhcoreClassLoginThrottle::recordFailure($throttleIp, $_POST['Username']);
+
+                if ($throttleLockedFor > 0) {
+                    $Error = erLhcoreClassLoginThrottle::getLockedMessage($throttleLockedFor);
+                }
             }
 
             $tpl->set('errors',array($Error));
@@ -149,7 +181,9 @@ if (isset($_POST['Login']))
             }
 
         } else {
-            
+
+            erLhcoreClassLoginThrottle::recordSuccess($throttleIp, $_POST['Username']);
+
             $response = erLhcoreClassChatEventDispatcher::getInstance()->dispatch('user.login_after_success_authenticate', array('current_user' => & $currentUser, 'tpl' => & $tpl));
             
             if ($response === false)
@@ -169,7 +203,7 @@ if (isset($_POST['Login']))
 
                        $secretHash = erConfigClassLhConfig::getInstance()->getSetting( 'site', 'secrethash' );
                        $ts = time()+600; // Visitor has 10 minutes to change password until link is expired
-                       $hash = sha1($secretHash.sha1($secretHash.implode(',', array($userData->id,$ts))));
+                       $hash = hash_hmac('sha256', implode(',', array($userData->id,$ts)), $secretHash);
 
                        erLhcoreClassModule::redirect('user/updatepassword','/' . $userData->id . '/' . $ts . '/' . $hash);
                        exit;
@@ -195,11 +229,16 @@ if (isset($_POST['Login']))
                 }
 
                 if ($redirect != '') {
-                    erLhcoreClassModule::redirect(base64_decode($redirect));
-                } else {
-                    erLhcoreClassModule::redirect();
-                    exit;
+                    $redirectPath = base64_decode($redirect);
+
+                    if (erLhcoreClassUserUtils::isValidRedirectPath($redirectPath)) {
+                        erLhcoreClassModule::redirect($redirectPath);
+                        exit;
+                    }
                 }
+
+                erLhcoreClassModule::redirect();
+                exit;
             }
         }
 

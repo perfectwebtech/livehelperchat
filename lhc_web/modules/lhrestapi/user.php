@@ -30,6 +30,7 @@ try
         }
 
         if ($_SERVER['REQUEST_METHOD'] == 'GET') {
+            unset($user->password);
             erLhcoreClassRestAPIHandler::outputResponse(array
                 (
                     'error' => false,
@@ -57,6 +58,8 @@ try
 
     $groups_can_edit = erLhcoreClassRestAPIHandler::hasAccessTo('lhuser', 'editusergroupall') == true ? true : erLhcoreClassGroupRole::getGroupsAccessedByUser(erLhcoreClassRestAPIHandler::getUser() );
     $userParams = array('payload_data' => $requestBody, 'show_all_pending' => 1, 'global_departament' => array(), 'groups_can_read' => array(), 'groups_can_edit' => ($groups_can_edit === true ? true : $groups_can_edit['groups']));
+
+    $passwordHashBefore = $user->password;
 
     $Errors = erLhcoreClassRestAPIUserValidator::validateUser($user, $userParams);
 
@@ -99,10 +102,16 @@ try
 
         $db->commit();
 
+        // Password rotation has to rotate the REST API tokens as well
+        if ($passwordHashBefore !== $user->password) {
+            erLhcoreClassModelUserSession::revokeForUser($user->id);
+        }
+
     }  else {
         throw new Exception(implode("\n",$Errors));
     }
 
+    unset($user->password);
     erLhcoreClassRestAPIHandler::outputResponse(array
         (
             'error' => false,
@@ -111,7 +120,7 @@ try
     );
 
 } catch (Exception $e) {
-    http_response_code(400);
+    if (http_response_code() === 200) { http_response_code(400); } // keep 401/403 set by the validator
     echo erLhcoreClassRestAPIHandler::outputResponse(array(
         'error' => true,
         'result' => $e->getMessage()

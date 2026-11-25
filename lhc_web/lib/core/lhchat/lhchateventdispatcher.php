@@ -34,6 +34,9 @@ class erLhcoreClassChatEventDispatcher {
                $this->listen('group_chat.web_add_msg_admin', 'erLhcoreClassLHCMobile::newGroupMessage');
                $this->listen('chat.subject_add', 'erLhcoreClassLHCMobile::newSubject');
            }
+
+           // AI assistant answers visitors while a chat waits for an operator (no-op unless enabled).
+           $this->listen('chat.addmsguser', 'erLhcoreClassAiAssistant::visitorMessage');
        }
 
        if ($this->webhooksSet == false && $event !== null) {

@@ -9,7 +9,13 @@ $instance = erLhcoreClassSystem::instance();
 if ($instance->SiteAccess != 'site_admin') {
 
     if ($currentUser->isLogged() && !empty($Params['user_parameters_unordered']['r'])) {
-        header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin').'/'.base64_decode(rawurldecode($Params['user_parameters_unordered']['r'])));
+        $redirectPath = base64_decode(rawurldecode($Params['user_parameters_unordered']['r']));
+
+        if (!erLhcoreClassUserUtils::isValidRedirectPath($redirectPath)) {
+            $redirectPath = '';
+        }
+
+        header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin').'/'.ltrim($redirectPath,'/'));
         exit;
     }
 
@@ -25,6 +31,9 @@ if ($instance->SiteAccess != 'site_admin') {
     $redirect = rawurldecode($Params['user_parameters_unordered']['t']);
     $redirectFull .= $redirect != '' ? '/(t)/'.rawurlencode($redirect) : '';
 
+    $redirect = rawurldecode($Params['user_parameters_unordered']['n']);
+    $redirectFull .= $redirect != '' ? '/(n)/'.rawurlencode($redirect) : '';
+
     $redirectHash = rawurlencode(rawurldecode($Params['user_parameters']['hash']));
         
     header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin/user/autologin').'/'.$redirectHash.$redirectFull );
@@ -39,16 +48,18 @@ if ($data['enabled'] == 1) {
         'r' => base64_decode(rawurldecode($Params['user_parameters_unordered']['r'])),
         'u' => rawurldecode($Params['user_parameters_unordered']['u']),
         'l' => rawurldecode($Params['user_parameters_unordered']['l']),
+        'n' => rawurldecode(isset($Params['user_parameters_unordered']['n']) ? $Params['user_parameters_unordered']['n'] : ''),
         't' => rawurldecode($Params['user_parameters_unordered']['t']),
     );
 
     $dataRequest = array_filter($dataRequest);
     
-    $validateHash = sha1($data['secret_hash'].sha1($data['secret_hash'].implode(',', $dataRequest)));
+    $validateHash = hash_hmac('sha256', implode(',', $dataRequest), $data['secret_hash']);
     
-    if ($validateHash == $Params['user_parameters']['hash']) {
+    if (hash_equals($validateHash, (string)$Params['user_parameters']['hash'])) {
         
-        if (isset($dataRequest['t']) && $dataRequest['t'] > 0 && $dataRequest['t'] < time()) {
+        // Expiry time is mandatory
+        if (!isset($dataRequest['t']) || $dataRequest['t'] <= 0 || $dataRequest['t'] < time()) {
             die(erTranslationClassLhTranslation::getInstance()->getTranslation('users/autologin','Autologin hash has expired'));
         }
 
@@ -66,10 +77,41 @@ if ($data['enabled'] == 1) {
         } catch (Exception $e) {
             die($e->getMessage());
         }
-        
+
         if ($userToLogin instanceof erLhcoreClassModelUser) {
+
+            // Autologin has to respect the same IP restrictions as a regular back office login
+            $passwordData = (array)erLhcoreClassModelChatConfig::fetch('password_data')->data;
+
+            if (isset($passwordData['allow_login_from_ip']) && $passwordData['allow_login_from_ip'] != '') {
+                $bypassIpUserIds = (isset($passwordData['bypass_ip_user_id']) && $passwordData['bypass_ip_user_id'] != '') ? explode(',', str_replace(' ', '', $passwordData['bypass_ip_user_id'])) : array();
+
+                if (!in_array((string)$userToLogin->id, $bypassIpUserIds) && !erLhcoreClassIPDetect::isIgnored(erLhcoreClassIPDetect::getIP(), explode(',', $passwordData['allow_login_from_ip']))) {
+
+                    erLhcoreClassModelUserLogin::logUserAction(array(
+                        'type' => erLhcoreClassModelUserLogin::TYPE_LOGIN_ATTEMPT,
+                        'user_id' => $userToLogin->id,
+                        'msg' => erTranslationClassLhTranslation::getInstance()->getTranslation('users/autologin','Failed login. AUTOLOGIN. IP restrictions')
+                    ));
+
+                    die(erTranslationClassLhTranslation::getInstance()->getTranslation('user/login','You can not login because of IP restrictions'));
+                }
+            }
+
+            $userToLogin->force_logout = 0;
+            $userToLogin->llogin = time();
+            $userToLogin->updateThis(['update' => ['force_logout','llogin']]);
+
+            erLhcoreClassModelUserLogin::logUserAction(array(
+                'type' => erLhcoreClassModelUserLogin::TYPE_LOGGED,
+                'user_id' => $userToLogin->id,
+                'msg' => erTranslationClassLhTranslation::getInstance()->getTranslation('users/autologin','Logged in successfully. AUTOLOGIN')
+            ));
+
             erLhcoreClassUser::instance()->setLoggedUser($userToLogin->id);
-            header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin').'/'.ltrim($dataRequest['r'],'/'));
+            $redirectPath = isset($dataRequest['r']) && erLhcoreClassUserUtils::isValidRedirectPath($dataRequest['r']) ? $dataRequest['r'] : '';
+
+            header('Location: ' .erLhcoreClassDesign::baseurldirect('site_admin').'/'.ltrim($redirectPath,'/'));
             exit;            
         } else {
             die(erTranslationClassLhTranslation::getInstance()->getTranslation('users/autologin','Could not find a provided user'));

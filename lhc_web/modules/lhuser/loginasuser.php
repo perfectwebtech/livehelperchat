@@ -5,7 +5,13 @@ $user = erLhcoreClassModelUser::fetch((int)$Params['user_parameters']['id']);
 $hash = $Params['user_parameters_unordered']['hash'];
 $ts = $Params['user_parameters_unordered']['ts'];
 
-if ($user instanceof erLhcoreClassModelUser && $hash == sha1($user->id . '_' . $user->password . '_' . erConfigClassLhConfig::getInstance()->getSetting('site','secrethash') . '_' . $ts) && $ts > time() - 120) {
+if ($user instanceof erLhcoreClassModelUser && is_string($hash) && hash_equals(sha1($user->id . '_' . $user->password . '_' . erConfigClassLhConfig::getInstance()->getSetting('site','secrethash') . '_' . $ts), $hash) && $ts > time() - 120) {
+
+    // Reset force logout option
+    $user->force_logout = 0;
+    $user->llogin = time();
+    $user->updateThis(['update' => ['force_logout','llogin']]);
+
     erLhcoreClassUser::instance()->setLoggedUser($user->id);
 
     // change status instnatly of offline. To avoid any conflicts

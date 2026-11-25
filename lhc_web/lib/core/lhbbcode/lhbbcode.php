@@ -1012,8 +1012,14 @@ class erLhcoreClassBBCode
            $matches = array();
            preg_match_all('/\[html_snippet\](.*?)\[\/html_snippet\]/is',$msg,$matches);
            foreach ($matches[0] as $index => $match) {
+               // Only a canned message id is a valid html_snippet reference. Anything else
+               // (e.g. a visitor supplied message) must never be treated as a snippet.
+               $messageCanned = trim($matches[1][$index]);
+               if ($messageCanned === '' || !ctype_digit($messageCanned)) {
+                   continue;
+               }
                $msg = str_replace($match,'',$msg);
-               $meta['html_snippet'][] = $matches[1][$index];
+               $meta['html_snippet'][] = (int)$messageCanned;
            }
        }
        return $meta;
@@ -1105,7 +1111,7 @@ class erLhcoreClassBBCode
 
         $ret = preg_replace_callback('/\[url\="?(.*?)"?\](.*?)\[\/url\]/ms', "erLhcoreClassBBCode::_make_url_embed", $ret);
 
-        if (isset($paramsMessage['sender']) && $paramsMessage['sender'] == 0) {
+        if ((isset($paramsMessage['sender']) && $paramsMessage['sender'] == 0) || (isset($paramsMessage['user_id_raw']) && $paramsMessage['user_id_raw'] == 0)) {
             $ret = preg_replace('/\[html\](.*?)\[\/html\]/ms','',$ret);
         } else if (isset($paramsMessage['html_as_text']) && $paramsMessage['html_as_text'] == true) {
             $ret = preg_replace_callback('/\[html\](.*?)\[\/html\]/ms', function ($matches) {

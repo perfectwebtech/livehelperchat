@@ -61,11 +61,24 @@ class erLhcoreClassUser{
               $this->session->save( $this->session->load() );
               $this->userid = $_SESSION['lhc_user_id'];
               $this->authenticated = true;
-              $this->cache_version = $this->getUserData(true)->cache_version;
+
+              $userData = $this->getUserData(true);
+              $this->cache_version = $userData->cache_version;
+
+              // Bind the session to the password hash it was created with. If the password
+              // was changed meanwhile every other session is terminated on its next request.
+              if (!isset($_SESSION['lhc_user_pswd_hash'])) {
+                  // Sessions created before this protection was introduced are bound to the current password.
+                  $_SESSION['lhc_user_pswd_hash'] = $userData->password;
+              } elseif (!hash_equals((string)$_SESSION['lhc_user_pswd_hash'], (string)$userData->password)) {
+                  $this->authenticated = false;
+                  $this->logout();
+                  return;
+              }
 
               // Check that session is valid
               if (self::$oneLoginPerAccount == true || erConfigClassLhConfig::getInstance()->getSetting( 'site', 'one_login_per_account', false ) == true) {              
-                  $sesid = $this->getUserData(true)->session_id;             
+                  $sesid = $userData->session_id;             
                   if ($sesid != $_COOKIE[!empty($sessionCookieName) && $sessionCookieName !== false ? $sessionCookieName : 'PHPSESSID'] && $sesid != '') {
                       $this->authenticated = false;
                       $this->logout();
@@ -94,6 +107,8 @@ class erLhcoreClassUser{
 		));  
 
 		if ($user === false) {
+            // Dummy verification so response time does not reveal whether the user exists
+            password_verify($password, '$2y$10$TSJv59MKTA7CjWa2EdecfOwsw9omyl1IHMfCLD8x9VuPaFpO4V4m2');
             return false;
 		} else {
             $fieldAuthentificated = $user->email == $username ? 'email' : 'username';
@@ -143,6 +158,18 @@ class erLhcoreClassUser{
                 $_SESSION['lhc_user_id'] = $data['id'][0];
                 $this->userid = $data['id'][0];
 
+                // Change old password to new one
+                if ($changePassword === true) {
+                    $db = ezcDbInstance::get();
+                    $stmt = $db->prepare('UPDATE lh_users SET password = :password WHERE id = :id');
+                    $stmt->bindValue(':password', password_hash($password, PASSWORD_DEFAULT), PDO::PARAM_STR);
+                    $stmt->bindValue(':id', $this->userid, PDO::PARAM_INT);
+                    $stmt->execute();
+                }
+
+                // Bind the session to the current password hash so a password change invalidates it.
+                $_SESSION['lhc_user_pswd_hash'] = self::getUserPasswordHash($this->userid);
+
                 if ($remember === true) {
                 	$this->rememberMe();
                 }
@@ -156,15 +183,6 @@ class erLhcoreClassUser{
                     $stmt = $db->prepare('UPDATE lh_users SET session_id = :session_id WHERE id = :id');
                     $stmt->bindValue(':session_id',session_id(),PDO::PARAM_STR);
                     $stmt->bindValue(':id',$this->userid,PDO::PARAM_INT);
-                    $stmt->execute();
-                }
-
-                // Change old password to new one
-                if ($changePassword === true) {
-                    $db = ezcDbInstance::get();
-                    $stmt = $db->prepare('UPDATE lh_users SET password = :password WHERE id = :id');
-                    $stmt->bindValue(':password', password_hash($password, PASSWORD_DEFAULT), PDO::PARAM_STR);
-                    $stmt->bindValue(':id', $this->userid, PDO::PARAM_INT);
                     $stmt->execute();
                 }
 
@@ -241,6 +259,9 @@ class erLhcoreClassUser{
    					$_SESSION['lhc_user_id'] = $data['id'][0];
    					$this->userid = $data['id'][0];
 
+   					// Bind the session to the current password hash so a password change invalidates it.
+   					$_SESSION['lhc_user_pswd_hash'] = self::getUserPasswordHash($this->userid);
+
    					if ($remember == true) {
    					    $this->rememberMe();
                     }
@@ -277,11 +298,9 @@ class erLhcoreClassUser{
        if (isset($_SESSION['lhc_csfr_token'])){ unset($_SESSION['lhc_csfr_token']); }
        if (isset($_SESSION['lhc_user_timezone'])){ unset($_SESSION['lhc_user_timezone']); }
        if (isset($_SESSION['lhc_chat_config'])){ unset($_SESSION['lhc_chat_config']); }
+       if (isset($_SESSION['lhc_user_pswd_hash'])){ unset($_SESSION['lhc_user_pswd_hash']); }
        
-       if ( isset($_COOKIE['lhc_rm_u']) ) {
-       		unset($_COOKIE['lhc_rm_u']);
-       		setcookie('lhc_rm_u','',time()-31*24*3600,'/');
-       };
+       self::clearRememberCookie();
 
        if (is_numeric($this->userid)) {       
 	       $q = ezcDbInstance::get()->createDeleteQuery();
@@ -298,6 +317,18 @@ class erLhcoreClassUser{
        
        @session_regenerate_id(true);
        @session_destroy();
+   }
+
+   /**
+    * Re-binds the current session to the new password hash after the logged in
+    * user changed their own password. Other sessions keep the old hash and are
+    * therefore terminated on their next request.
+    */
+   public function refreshSessionPasswordHash($user)
+   {
+       if (is_numeric($this->userid) && isset($user->id) && $this->userid == $user->id && session_status() === PHP_SESSION_ACTIVE) {
+           $_SESSION['lhc_user_pswd_hash'] = $user->password;
+       }
    }
 
    public static function getSession()
@@ -485,8 +516,8 @@ class erLhcoreClassUser{
 	   	$rusr->user_id = $this->userid;
 	   	$rusr->mtime = time();
 	   	$rusr->saveThis();
-	   	$hash = $salt1.':'.$rusr->id.':'.sha1($this->userid.'_'.$rusr->id.$salt2.$salt1.erLhcoreClassIPDetect::getIP().$_SERVER['HTTP_USER_AGENT']);
-   		setcookie('lhc_rm_u',$hash,time()+365*24*3600,'/');
+	   	$hash = $salt1.':'.$rusr->id.':'.self::getRememberHash($rusr->user_id, $rusr->id, $salt1, $salt2);
+   		self::setRememberCookie($hash, time()+365*24*3600);
    }
 
    function validateRemember($hashCookie)
@@ -500,27 +531,67 @@ class erLhcoreClassUser{
 
 	   		try {
 	   			$ruser = erLhcoreClassModelUserRemember::fetch($id);
-	   			if ($hash ==  sha1($ruser->user_id.'_'.$ruser->id.$salt2.$salt1.erLhcoreClassIPDetect::getIP().$_SERVER['HTTP_USER_AGENT'])){
+	   			if ($hash == self::getRememberHash($ruser->user_id, $ruser->id, $salt1, $salt2)){
 	   				$ruser->mtime = time();
 	   				$ruser->updateThis();
 	   				$this->setLoggedUser($ruser->user_id);
 	   				// Update remember hash
 	   				$salt1 = erLhcoreClassModelForgotPassword::randomPassword(30);
-	   				$hash = $salt1.':'.$ruser->id.':'.sha1($this->userid.'_'.$ruser->id.$salt2.$salt1.erLhcoreClassIPDetect::getIP().$_SERVER['HTTP_USER_AGENT']);
-	   				setcookie('lhc_rm_u',$hash,time()+365*24*3600,'/');
+	   				$hash = $salt1.':'.$ruser->id.':'.self::getRememberHash($ruser->user_id, $ruser->id, $salt1, $salt2);
+	   				self::setRememberCookie($hash, time()+365*24*3600);
 	   				return true;
 	   			}
 	   		} catch (Exception $e){
 	   			return false;
 	   		}
 	   	} else {
-	   		if ( isset($_COOKIE['lhc_rm_u']) ) {
-	   			unset($_COOKIE['lhc_rm_u']);
-	   			setcookie('lhc_rm_u','',time()-31*24*3600,'/');
-	   		};
+	   		self::clearRememberCookie();
 	   	}
 
 	   	return false;
+   }
+
+   /**
+    * Password hash of an user. Sessions and remember me tokens are bound to it
+    * so changing the password invalidates every previously issued session/token.
+    */
+   private static function getUserPasswordHash($userId)
+   {
+       $user = erLhcoreClassModelUser::fetch($userId, false);
+       return ($user instanceof erLhcoreClassModelUser) ? $user->password : '';
+   }
+
+   /**
+    * Server side "remember me" token digest. The user password hash is part of
+    * the digest so a password change invalidates every previously issued token.
+    */
+   private static function getRememberHash($userId, $rememberId, $salt1, $salt2)
+   {
+       return sha1($userId.'_'.$rememberId.$salt2.$salt1.self::getUserPasswordHash($userId).erLhcoreClassIPDetect::getIP().(isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : ''));
+   }
+
+   private static function setRememberCookie($hash, $expires)
+   {
+       if (php_sapi_name() === 'cli') {
+           return;
+       }
+
+       setcookie('lhc_rm_u', $hash, array(
+           'expires' => $expires,
+           'path' => '/',
+           'secure' => (isset(erLhcoreClassSystem::$httpsMode) ? erLhcoreClassSystem::$httpsMode : false),
+           'httponly' => true,
+           'samesite' => 'Lax',
+       ));
+   }
+
+   private static function clearRememberCookie()
+   {
+       if (isset($_COOKIE['lhc_rm_u'])) {
+           unset($_COOKIE['lhc_rm_u']);
+       }
+
+       self::setRememberCookie('', time()-31*24*3600);
    }
 
    private static $persistentSession;

@@ -8,10 +8,12 @@ $hashSecret = erLhcoreClassModelChatConfig::fetch('export_hash')->current_value;
 try {
     
     if (strlen($hashSecret) < 50) {
-        throw new Exception('Export hash to short!');
+        throw new Exception('Export hash is empty or too short!');
     }
 
 	if ( sha1('getlist'.$hashSecret) == $hash ) {
+
+		erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_CHAT_EXPORT, 'api_list', array('format' => $format, 'params' => $Params['user_parameters_unordered']));
 
 		$filter = array();
 

@@ -16,7 +16,7 @@ if (isset($_POST['DeleteSelected']) && !empty($_POST['canned_id']) && $currentUs
     }
 
     if (isset($_SERVER['HTTP_REFERER'])) {
-        header('Location: ' . $_SERVER['HTTP_REFERER']);
+        header('Location: ' . erLhcoreClassChatValidator::getSafeReferer());
         exit;
     }
 }
@@ -79,7 +79,7 @@ if ($tab == 'cannedmsg') {
         }
 
         if (isset($_SERVER['HTTP_REFERER'])) {
-            header('Location: ' . $_SERVER['HTTP_REFERER']);
+            header('Location: ' . erLhcoreClassChatValidator::getSafeReferer());
         } else {
             erLhcoreClassModule::redirect('chat/cannedmsg');
         }

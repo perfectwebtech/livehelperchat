@@ -9,6 +9,17 @@ try {
             throw new Exception('You do not have permission. `lhfile`, `upload_new_file` is required.');
         }
 
+        $chatId = (isset($_POST['chat_id']) && is_numeric($_POST['chat_id'])) ? (int)$_POST['chat_id'] : 0;
+
+        // A file can be uploaded only to a chat the caller is able to read
+        if ($chatId > 0) {
+            $chatToUpload = erLhcoreClassModelChat::fetch($chatId);
+
+            if (!($chatToUpload instanceof erLhcoreClassModelChat) || !erLhcoreClassRestAPIHandler::hasAccessToRead($chatToUpload)) {
+                throw new Exception('You do not have permission to upload a file to this chat.');
+            }
+        }
+
         $errors = array();
         erLhcoreClassChatEventDispatcher::getInstance()->dispatch('file.before_admin_uploadfile.file_store', array('errors' => & $errors));
 
@@ -21,7 +32,7 @@ try {
 
             erLhcoreClassChatEventDispatcher::getInstance()->dispatch('file.new.file_path', array('path' => & $path));
 
-            $upload_handler = new erLhcoreClassFileUploadAdmin(array('chat_id' => (isset($_POST['chat_id']) && is_numeric($_POST['chat_id']) ? $_POST['chat_id'] : 0), 'remove_meta' => (isset($data['remove_meta']) ? $data['remove_meta'] : false), 'user_id' => erLhcoreClassRestAPIHandler::getUserId(), 'persistent' => (isset($_POST['persistent']) && $_POST['persistent'] == 'true'), 'file_name_replace' => (isset($_POST['name_replace']) ? $_POST['name_replace'] : ''), 'file_name_manual' => (isset($_POST['name_prepend']) ? $_POST['name_prepend'] : ''), 'upload_dir' => $path, 'download_via_php' => true, 'max_file_size' => $data['fs_max'] * 1024, 'accept_file_types_lhc' => '/\.(' . $data['ft_op'] . ')$/i'));
+            $upload_handler = new erLhcoreClassFileUploadAdmin(array('chat_id' => $chatId, 'remove_meta' => (isset($data['remove_meta']) ? $data['remove_meta'] : false), 'user_id' => erLhcoreClassRestAPIHandler::getUserId(), 'persistent' => (isset($_POST['persistent']) && $_POST['persistent'] == 'true'), 'file_name_replace' => (isset($_POST['name_replace']) ? $_POST['name_replace'] : ''), 'file_name_manual' => (isset($_POST['name_prepend']) ? $_POST['name_prepend'] : ''), 'upload_dir' => $path, 'download_via_php' => true, 'max_file_size' => $data['fs_max'] * 1024, 'accept_file_types_lhc' => '/\.(' . $data['ft_op'] . ')$/i'));
 
             if ($upload_handler->uploadedFile instanceof erLhcoreClassModelChatFile) {
                 erLhcoreClassChatEventDispatcher::getInstance()->dispatch('file.file_new_admin.file_store', array('chat_file' => $upload_handler->uploadedFile));
@@ -48,9 +59,42 @@ try {
             throw new Exception('File could not be found!');
         }
 
+        // A file can be edited only from a chat the caller is able to read
+        if ($file->chat_id > 0) {
+            $fileChat = erLhcoreClassModelChat::fetch($file->chat_id);
+
+            if (!($fileChat instanceof erLhcoreClassModelChat) || !erLhcoreClassRestAPIHandler::hasAccessToRead($fileChat)) {
+                throw new Exception('You do not have permission to edit this file.');
+            }
+        }
+
         $requestBody = json_decode(file_get_contents('php://input'),true);
 
-        foreach ($requestBody as $attr => $attrValue) {
+        $whiteList = ['upload_name','persistent', 'chat_id', 'user_id', 'online_user_id'];
+
+        foreach ((is_array($requestBody) ? $requestBody : []) as $attr => $attrValue) {
+            if (!in_array($attr, $whiteList, true)) {
+                continue;
+            }
+
+            if ($attr === 'user_id' && (int)$attrValue !== erLhcoreClassRestAPIHandler::getUserId()) {
+                throw new Exception('You do not have permission. A file can be assigned only to yourself.');
+            }
+
+            if ($attr === 'chat_id') {
+                if (!is_numeric($attrValue)) {
+                    throw new Exception('chat_id has to be a numeric value!');
+                }
+
+                if ((int)$attrValue > 0) {
+                    $targetChat = erLhcoreClassModelChat::fetch((int)$attrValue);
+
+                    if (!($targetChat instanceof erLhcoreClassModelChat) || !erLhcoreClassRestAPIHandler::hasAccessToRead($targetChat)) {
+                        throw new Exception('You do not have permission to move the file to this chat.');
+                    }
+                }
+            }
+
             $file->{$attr} = $attrValue;
             $file->updateThis();
         }
@@ -107,7 +151,7 @@ try {
     }
 
 } catch (Exception $e) {
-    http_response_code(400);
+    if (http_response_code() === 200) { http_response_code(400); } // keep 401/403 set by the validator
     echo erLhcoreClassRestAPIHandler::outputResponse(array(
         'error' => true,
         'result' => $e->getMessage()

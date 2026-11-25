@@ -20,7 +20,7 @@ if ( isset($_POST['doDelete']) ) {
 	if ( $form->hasValidData( 'ChatID' ) && !empty($form->ChatID) ) {
 		$chats = erLhcoreClassChat::getList(array('filterin' => array('id' => $form->ChatID)));
 		foreach ($chats as $chatToDelete) {
-			if (erLhcoreClassChat::hasAccessToWrite($chatToDelete) && ($currentUser->hasAccessTo('lhchat','deleteglobalchat') || ($currentUser->hasAccessTo('lhchat','deletechat') && $chatToDelete->user_id == $currentUser->getUserID())))
+			if (erLhcoreClassChat::hasAccessToWrite($chatToDelete) && erLhcoreClassChat::hasAccessToRead($chatToDelete) && ($currentUser->hasAccessTo('lhchat','deleteglobalchat') || ($currentUser->hasAccessTo('lhchat','deletechat') && $chatToDelete->user_id == $currentUser->getUserID())))
 			{
 				$chatToDelete->removeThis();
 			}
@@ -48,7 +48,7 @@ if ( isset($_POST['doClose']) ) {
         $userData = $currentUser->getUserData(true);
 
 		foreach ($chats as $chatToClose) {
-            if (($chatToClose->user_id == $currentUser->getUserID() || $currentUser->hasAccessTo('lhchat','allowcloseremote')) && erLhcoreClassChat::hasAccessToWrite($chatToClose))
+            if (($chatToClose->user_id == $currentUser->getUserID() || $currentUser->hasAccessTo('lhchat','allowcloseremote')) && erLhcoreClassChat::hasAccessToWrite($chatToClose) && erLhcoreClassChat::hasAccessToRead($chatToClose))
             {
                 erLhcoreClassChatHelper::closeChat(array(
                     'user' => $userData,
@@ -97,12 +97,13 @@ if ($Params['user_parameters_unordered']['print'] == 1) {
 	return;
 }
 
-if (isset($Params['user_parameters_unordered']['export']) && $Params['user_parameters_unordered']['export'] == 1) {
-    if (ezcInputForm::hasPostData()) {
+if (isset($Params['user_parameters_unordered']['export']) && $Params['user_parameters_unordered']['export'] == 1 && erLhcoreClassUser::instance()->hasAccessTo('lhchat','export_chats')) {
+    if (ezcInputForm::hasPostData() && isset($_POST['csfr_token']) && $currentUser->validateCSFRToken($_POST['csfr_token'])) {
         session_write_close();
         $ignoreFields = (new erLhcoreClassModelChat)->getState();
         unset($ignoreFields['id']);
         $ignoreFields = array_keys($ignoreFields);
+        erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_CHAT_EXPORT, 'xls', array('filter' => $filterParams['filter']));
         erLhcoreClassChatExport::chatListExportXLS(erLhcoreClassModelChat::getList(array_merge($filterParams['filter'], array('limit' => 100000, 'offset' => 0, 'ignore_fields' => $ignoreFields))), array('csv' => isset($_POST['CSV']), 'type' => (isset($_POST['exportOptions']) ? $_POST['exportOptions'] : [])));
         exit;
     } else {

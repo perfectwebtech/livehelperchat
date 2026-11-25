@@ -44,6 +44,12 @@ return array_merge(array (
         'erLhcoreClassChatCommand'=> 'lib/core/lhchat/lhchatcommand.php',
         'erLhcoreClassChatHelper' => 'lib/core/lhchat/lhchathelper.php',
         'erLhcoreClassUserValidator' => 'lib/core/lhuser/lhuservalidator.php',
+        'erLhcoreClassLoginThrottle' => 'lib/core/lhuser/lhloginthrottle.php',
+        'erLhcoreClassAuditTrail' => 'lib/core/lhcore/lhaudittrail.php',
+        'erLhcoreClassSsoOidc' => 'lib/core/lhsso/lhssooidc.php',
+        'erLhcoreClassAiAssistant' => 'lib/core/lhai/lhaiassistant.php',
+        'erLhcoreClassGdpr' => 'lib/core/lhgdpr/lhgdpr.php',
+        'erLhcoreClassMetrics' => 'lib/core/lhmetrics/lhmetrics.php',
         'Clamav'                     => 'lib/core/lhexternal/Clamav.php',
 
         'erLhcoreClassBBCode'       => 'lib/core/lhbbcode/lhbbcode.php',
@@ -60,6 +66,7 @@ return array_merge(array (
 
         'erLhcoreClassModelUser'            => 'lib/models/lhuser/erlhcoreclassmodeluser.php',
         'erLhcoreClassModelUserLogin'       => 'lib/models/lhuser/erlhcoreclassmodeluserlogin.php',
+        'erLhcoreClassModelLoginThrottle'   => 'lib/models/lhuser/erlhcoreclassmodelloginthrottle.php',
         'erLhcoreClassModelUserOnlineSession' => 'lib/models/lhuser/erlhcoreclassmodeluseronlinesession.php',
         'erLhcoreClassModelUserSession'     => 'lib/models/lhuser/erlhcoreclassmodelusersession.php',
 		'erLhcoreClassModelUserRemember' 	=> 'lib/models/lhuser/erlhcoreclassmodeluserremember.php',

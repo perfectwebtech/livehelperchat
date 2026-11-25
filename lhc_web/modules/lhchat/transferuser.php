@@ -6,12 +6,16 @@ if (is_numeric( $Params['user_parameters']['chat_id']) && is_numeric($Params['us
     $db->beginTransaction();
     try {
 
+        if (!isset($_SERVER['HTTP_X_CSRFTOKEN']) || !erLhcoreClassUser::instance()->validateCSFRToken($_SERVER['HTTP_X_CSRFTOKEN'])) {
+            throw new Exception('Invalid CSRF token!');
+        }
+
         $Chat = erLhcoreClassChat::getSession()->load( 'erLhcoreClassModelChat', $Params['user_parameters']['chat_id']);
         $errors = array();
 
         erLhcoreClassChatEventDispatcher::getInstance()->dispatch('chat.before_chat_transfered', array('chat' => & $Chat, 'errors' => & $errors));
 
-        if ( erLhcoreClassChat::hasAccessToRead($Chat) && empty($errors) )
+        if (erLhcoreClassChat::hasAccessToRead($Chat) && erLhcoreClassChat::hasAccessToWrite($Chat) && empty($errors))
         {
             $currentUser = erLhcoreClassUser::instance();
 
@@ -39,7 +43,7 @@ if (is_numeric( $Params['user_parameters']['chat_id']) && is_numeric($Params['us
                     $Chat->updateThis();
 
                     $tpl = erLhcoreClassTemplate::getInstance('lhkernel/alert_success.tpl.php');
-                    $tpl->set('msg', erTranslationClassLhTranslation::getInstance()->getTranslation('chat/transferuser', 'Chat department was changed to') . ' ' . $dep);
+                    $tpl->set('msg', erTranslationClassLhTranslation::getInstance()->getTranslation('chat/transferuser', 'Chat department was changed to') . ' ' . htmlspecialchars((string)$dep));
 
                     erLhcoreClassChatEventDispatcher::getInstance()->dispatch('chat.chat_owner_changed', array('chat' => & $Chat, 'user' => $currentUser->getUserData()));
 
@@ -91,7 +95,7 @@ if (is_numeric( $Params['user_parameters']['chat_id']) && is_numeric($Params['us
                         }
 
                         $tpl = erLhcoreClassTemplate::getInstance('lhkernel/alert_success.tpl.php');
-                        $tpl->set('msg', erTranslationClassLhTranslation::getInstance()->getTranslation('chat/transferuser', 'Chat owner was changed to') . ' ' . $user->name_support);
+                        $tpl->set('msg', erTranslationClassLhTranslation::getInstance()->getTranslation('chat/transferuser', 'Chat owner was changed to') . ' ' . htmlspecialchars($user->name_support));
 
                         erLhcoreClassChatEventDispatcher::getInstance()->dispatch('chat.chat_owner_changed', array('chat' => & $Chat, 'user' => $user));
 

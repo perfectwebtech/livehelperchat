@@ -48,6 +48,118 @@ http://livehelperchat.com/demo-12c.html
  * [CloudTalk integration](https://doc.livehelperchat.com/docs/integrating/cloudtalk/) 
  * [Chat API integration](https://doc.livehelperchat.com/docs/integrating/chat-api-com/) 
 
+## Development tooling and CI
+
+Every push and pull request runs `.github/workflows/ci.yml`:
+
+ * **PHP syntax** - `php -l` over the whole application on PHP 7.4, 8.1 and 8.3.
+ * **Unit tests** - PHPUnit (`lhc_web/tests`, config in `lhc_web/phpunit.xml.dist`).
+ * **PHPStan** - static analysis of the paths listed in `lhc_web/phpstan.neon.dist` (advisory until the first green run).
+ * **Install + login smoke test** - installs a fresh copy through `cli/install-cli.php` against MariaDB, then exercises the login page, the brute-force throttle, the REST API login and the admin settings page (`.github/scripts/smoke-login.sh`).
+ * **Docker Compose stack** - builds the image, boots MariaDB + web + scheduler from scratch, logs in, checks the schema is in sync and no secret was persisted, and recreates the web container to prove a redeploy keeps the installation (`.github/scripts/smoke-compose.sh`).
+
+Developer tools live in `lhc_web/tools/composer.json` so the application's own `composer.json`/`composer.lock` stay untouched:
+
+```
+cd lhc_web
+composer install -d tools
+tools/vendor/bin/phpunit
+tools/vendor/bin/phpstan analyse
+```
+
+### Production deployment with Docker Compose
+
+The full runbook (server, first deployment, go-live checklist, updates, rollback, backups, monitoring) is in [DEPLOYMENT.md](DEPLOYMENT.md). Upstream security fixes ported into this fork, and the behaviour changes they bring, are listed in [SECURITY-UPSTREAM-SYNC.md](SECURITY-UPSTREAM-SYNC.md). The optional self-hosted AI assistant (reply suggestions and automatic answers using vLLM or Ollama on your GPU) is described in [AI-ASSISTANT.md](AI-ASSISTANT.md). Quick start:
+
+```
+cp .env.example .env        # set the passwords and LHC_SECRET_HASH
+docker compose up -d --build
+```
+
+This starts MariaDB, the web container and a scheduler container that runs the background jobs (workflow, department availability, login monitoring, transfers every minute; anonymisation and archiving every hour) without system cron. On first boot the web container installs Live Helper Chat and creates the administrator from `LHC_ADMIN_*`. On every start it applies the bundled database schema (`LHC_AUTO_MIGRATE=1`), so a redeploy of a newer image upgrades the database automatically. Run `docker compose exec web php cli/update-db.php --dry-run` to preview pending schema changes.
+
+The web port binds to localhost by default. Publish it through a TLS-terminating reverse proxy and set `LHC_PROXY_MODE=1` only when that proxy is trusted. Uploaded files live in the `lhc-uploads` volume, the settings file in `lhc-data`, the database in `lhc-db`; back up all three.
+
+#### Configuration through environment variables
+
+Database credentials and secrets can come from the environment instead of `settings/settings.ini.php`, for containers and any other deployment. Values from the environment are used at runtime and never written back to the settings file. Each variable also accepts a `<NAME>_FILE` form pointing to a file (Docker and Kubernetes secrets).
+
+| Variable | Setting |
+|---|---|
+| `LHC_DB_HOST`, `LHC_DB_PORT`, `LHC_DB_USER`, `LHC_DB_PASSWORD`, `LHC_DB_DATABASE` | database connection |
+| `LHC_SECRET_HASH` | `site.secrethash` |
+| `LHC_HEALTH_TOKEN` | token for detailed health output |
+| `LHC_METRICS_TOKEN` | enables the Prometheus metrics endpoint |
+| `LHC_HSTS_MAX_AGE` | Strict-Transport-Security max-age on HTTPS responses |
+| `LHC_PROXY_MODE` | trust `X-Forwarded-For` (behind a trusted proxy only) |
+| `LHC_TRUSTED_HOST_PATTERNS` | comma separated regular expressions for host names allowed in generated links |
+| `LHC_DEBUG_OUTPUT` | debug output |
+| `LHC_REDIS_HOST`, `LHC_REDIS_PORT`, `LHC_REDIS_PASSWORD` | Redis connection |
+
+### Requirements and Docker image
+
+PHP 8.2 or newer is required (`lhc_web/composer.lock` is resolved for PHP 8.3). The root `Dockerfile` builds a production image on `php:8.3-apache` with the Composer dependencies installed in a build stage, opcache enabled and a container `HEALTHCHECK` on the health endpoint below.
+
+### Health endpoint
+
+`GET /index.php/system/health` returns HTTP 200 and `{"status":"ok"}` when the database answers and the writable directories are writable, otherwise HTTP 503 and `{"status":"fail"}`. It is safe to expose to load balancers and uptime monitors: it carries no versions, paths or hostnames. Per-check details (database latency, directory status, cache backend) are included for a logged-in operator, or when `?token=` matches the `health_token` value in `settings/settings.ini.php`.
+
+### Monitoring (Prometheus)
+
+Set `LHC_METRICS_TOKEN` (or `metrics_token` in `settings.ini.php`) to enable `GET /index.php/system/metrics`; send the token as `Authorization: Bearer <token>`. Without a configured token the endpoint returns 404, with a wrong one 401. All values are gauges computed at scrape time, so any number of web containers can be scraped:
+
+| Metric | Meaning |
+|---|---|
+| `lhc_up` | application and database reachable |
+| `lhc_chats{state="pending\|active\|bot"}` | chats currently in each state |
+| `lhc_pending_chat_oldest_seconds` | how long the longest waiting visitor has waited |
+| `lhc_chats_started_last_hour`, `lhc_chat_wait_seconds_avg_last_hour` | volume and average time to accept |
+| `lhc_operators_online`, `lhc_operators_logged_in` | operators visible as online / active including invisible |
+| `lhc_login_locks_active` | identifiers locked by brute-force protection |
+| `lhc_db_query_seconds` | database round-trip latency |
+
+Useful alerts: `lhc_pending_chat_oldest_seconds > 120`, `lhc_operators_online == 0` during business hours, and a failed scrape or `lhc_up == 0`.
+
+### Security headers
+
+Back-office pages send `Referrer-Policy: strict-origin-when-cross-origin` so chat and visitor URLs do not leak to third-party sites. Set `LHC_HSTS_MAX_AGE` (or `hsts_max_age`) to send `Strict-Transport-Security` on HTTPS responses once TLS works end to end. Session cookies already get the `Secure` flag on HTTPS.
+
+### Data retention and GDPR requests
+
+*System configuration -> Data retention (GDPR)* sets a retention policy that the hourly `cron/data_retention` job applies to closed chats, live and archived (the Docker scheduler runs it automatically):
+
+* **Anonymise after N days.** Blanks visitor messages and their form data; clears name, e-mail, phone, IP, user agent, referrers, chat variables, additional data, operator remarks, geo position and typing preview; deletes uploaded files and visitor tracking. Country and time zone stay for statistics. Operator messages can be blanked too.
+* **Delete after M days.** Removes the chat with its messages and files.
+
+*Data subject requests (export / erase)* finds every live and archived chat of a person by e-mail address or phone number (phone numbers match across formats). **Export** downloads a JSON file with their chats, messages and file names (right of access / portability). **Erase** permanently deletes them after the identifier is typed again (right to erasure). The same is scriptable for ticket automation:
+
+```
+php cli/gdpr.php find   jane@example.com
+php cli/gdpr.php export jane@example.com > jane.json
+php cli/gdpr.php erase  jane@example.com --yes
+php cli/gdpr.php retention
+```
+
+Every run, export and erasure is written to the audit log; for subject requests the log keeps a SHA-256 hash of the identifier, not the identifier itself. Permissions: `lhgdpr/configure` and `lhgdpr/subject_requests`.
+
+### Single sign-on (OpenID Connect)
+
+Operators can sign in through any OpenID Connect provider (Microsoft Entra ID, Okta, Keycloak, Google Workspace, Auth0, ...). Configure it under *System configuration -> Single sign-on*: register Live Helper Chat at the provider with the redirect URI shown on that page, then enter the issuer URL, client ID and client secret. Everything else comes from OIDC discovery. The login page gets a single sign-on button; the password form can be hidden (append `/(local)/1` to the login URL for a break-glass local login).
+
+Accounts are matched by username, then by e-mail, and can be created automatically on first sign-in with a default group. Provider groups map to Live Helper Chat groups (`provider-group=1,2`, one per line) and can be re-applied on every sign-in. Sign-ins and refusals are written to the audit log. The implementation uses the authorization code flow with PKCE and verifies RS256 ID tokens against the provider's JWKS without any third-party library. The CI smoke test runs the whole flow against a mock provider.
+
+### Scoped, expiring REST API keys
+
+REST API keys (Rest API -> API keys) can now be limited to a list of endpoints and given an expiry date. A key with no endpoints checked keeps full access, so existing keys behave as before. Expired keys get HTTP 401, out-of-scope calls get HTTP 403, both are written to the audit log, and every key records when it was last used so unused keys can be found and revoked.
+
+### Security audit trail
+
+Security-relevant actions are always written to the audit log (System configuration -> Audit log) with the acting operator, IP address and request: chat deletions, chat exports (XLS and the export API), role changes, password policy changes, login lockouts and unlocks, and rejected API key calls.
+
+### Brute-force protection for operator logins
+
+Failed logins (web and REST API) are counted per IP address and per username. When a limit is reached inside the time window further attempts are rejected for the lock duration; every consecutive lock doubles the duration up to a maximum. Locks expire on their own and never disable the account, unlike the older "maximum number of failed logins" option. Limits, durations and active locks (with an unlock button) are managed under *System configuration -> Password requirements*. Defaults: 20 attempts per IP, 5 per username, 15 minute window, 15 minute first lock, 24 hour maximum lock. Expired records are pruned by the `cron/login_monitoring` cron job.
+
 ## Quick development guide
  * After app is installed disable cache and enable debug output. 
    * https://github.com/LiveHelperChat/livehelperchat/blob/master/lhc_web/settings/settings.ini.default.php#L13-L16

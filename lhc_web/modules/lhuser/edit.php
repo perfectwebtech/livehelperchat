@@ -90,6 +90,13 @@ if ((isset($_POST['Update_account']) || isset($_POST['Save_account'])) && $can_e
 
         $UserData->updateThis();
 
+        // Password rotation has to rotate the REST API tokens as well
+        if (isset($originalSettings['old']['password']) && $originalSettings['old']['password'] !== $UserData->password) {
+            erLhcoreClassModelUserSession::revokeForUser($UserData->id);
+        }
+
+        $currentUser->refreshSessionPasswordHash($UserData);
+
         erLhcoreClassUserDep::setHideOnlineStatus($UserData);
         
         if ($can_edit_groups == true) {

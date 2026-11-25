@@ -1,0 +1,26 @@
+# TLS-terminating reverse proxy for the "tls" compose profile.
+#
+# LHC_DOMAIN is a real host name (chat.example.com): Caddy obtains and renews a
+# Let's Encrypt certificate automatically (ports 80 and 443 must be reachable
+# from the internet and the DNS record must point at this server).
+# LHC_DOMAIN=localhost: Caddy uses its own local CA (testing only).
+
+{$LHC_DOMAIN} {
+	encode zstd gzip
+
+	# Uploads: keep in line with upload_max_filesize in the web image.
+	request_body {
+		max_size 25MB
+	}
+
+	reverse_proxy web:80 {
+		# Caddy sets X-Forwarded-For / -Proto / -Host itself and replaces any
+		# X-Forwarded-For sent by the client, so with LHC_PROXY_MODE=1 the app
+		# sees the real visitor IP and visitors cannot spoof it.
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

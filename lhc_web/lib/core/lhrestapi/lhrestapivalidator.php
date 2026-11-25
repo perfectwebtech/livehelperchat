@@ -142,7 +142,13 @@ class erLhcoreClassRestAPIHandler
                 }
 
                 $user = erLhcoreClassModelUser::findOne(array('filter' => array('username' => $apiData[0])));
-                if (!($user instanceof erLhcoreClassModelUser) || !password_verify($apiData[1], $user->password)) {
+
+                // Always run password_verify so response time does not reveal whether the username exists
+                $passwordValid = ($user instanceof erLhcoreClassModelUser)
+                    ? password_verify($apiData[1], $user->password)
+                    : (password_verify($apiData[1], '$2y$10$TSJv59MKTA7CjWa2EdecfOwsw9omyl1IHMfCLD8x9VuPaFpO4V4m2') && false);
+
+                if (!($user instanceof erLhcoreClassModelUser) || !$passwordValid) {
 
                     if ($user instanceof erLhcoreClassModelUser) {
                         erLhcoreClassModelUserLogin::logUserAction(array(
@@ -176,6 +182,20 @@ class erLhcoreClassRestAPIHandler
                 if ($apiKey->ip_restrictions != '' && !erLhcoreClassIPDetect::isIgnored(erLhcoreClassIPDetect::getIP(),explode(',',$apiKey->ip_restrictions))) {
                     throw new Exception(erTranslationClassLhTranslation::getInstance()->getTranslation('lhrestapi/validation', 'Rest API IP restrictions applies! '). erLhcoreClassIPDetect::getIP());
                 }
+
+                if ($apiKey->is_expired) {
+                    erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_API_KEY, 'denied_expired', array('api_key_id' => (int)$apiKey->id, 'user_id' => (int)$apiKey->user_id, 'view' => erLhcoreClassModule::getCurrentView()), $apiKey->id);
+                    http_response_code(401);
+                    throw new Exception(erTranslationClassLhTranslation::getInstance()->getTranslation('lhrestapi/validation', 'API key has expired!'));
+                }
+
+                if (!$apiKey->allowsView(erLhcoreClassModule::getCurrentView())) {
+                    erLhcoreClassAuditTrail::record(erLhcoreClassAuditTrail::CATEGORY_API_KEY, 'denied_scope', array('api_key_id' => (int)$apiKey->id, 'user_id' => (int)$apiKey->user_id, 'view' => erLhcoreClassModule::getCurrentView()), $apiKey->id);
+                    http_response_code(403);
+                    throw new Exception(erTranslationClassLhTranslation::getInstance()->getTranslation('lhrestapi/validation', 'API key is not allowed to call this endpoint!'));
+                }
+
+                $apiKey->touchLastUsed();
 
                 // API Key
                 self::$apiKey = $apiKey;
@@ -978,8 +998,10 @@ class erLhcoreClassRestAPIHandler
         
             $json = json_encode($data, $options);
             
-            if (isset($_GET['callback'])) {
-                echo $_GET['callback'] . '(' . $json . ')';
+            // JSONP: only a plain JavaScript identifier (optionally dotted) is accepted as callback,
+            // anything else could inject script into the response.
+            if (isset($_GET['callback']) && is_string($_GET['callback']) && preg_match('/^[a-zA-Z_$][a-zA-Z0-9_$]*(\.[a-zA-Z_$][a-zA-Z0-9_$]*)*$/', $_GET['callback']) && strlen($_GET['callback']) <= 100) {
+                echo '/**/' . $_GET['callback'] . '(' . $json . ')';
             } else {
                 echo $json;
             }

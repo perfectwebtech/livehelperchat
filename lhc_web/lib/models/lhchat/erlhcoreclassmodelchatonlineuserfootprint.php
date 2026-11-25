@@ -1,5 +1,6 @@
 <?php
 
+#[\AllowDynamicProperties]
 class erLhcoreClassModelChatOnlineUserFootprint {
 
    public function getState()
@@ -96,7 +97,7 @@ class erLhcoreClassModelChatOnlineUserFootprint {
    		$item->chat_id = $onlineUser->chat_id;
    		$item->online_user_id = $onlineUser->id;
    		$item->vtime = time();
-   		$item->page = isset($_POST['l']) ? substr($_POST['l'],0,250) :  (isset($_GET['l']) ? rawurldecode($_GET['l']) : substr(erLhcoreClassModelChatOnlineUser::getReferer(),0,250));
+   		$item->page = substr(erLhcoreClassChatValidator::sanitizeUrl(isset($_POST['l']) ? $_POST['l'] :  (isset($_GET['l']) ? rawurldecode($_GET['l']) : erLhcoreClassModelChatOnlineUser::getReferer())),0,250);
    		erLhcoreClassChat::getSession()->save( $item );
    		
    		erLhcoreClassChatEventDispatcher::getInstance()->dispatch('onlinefootprint.created', array('item' => & $item));

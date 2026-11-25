@@ -9,7 +9,7 @@ $hash = $Params['user_parameters']['hash'];
 if ($ts > time()) {
 
     $secretHash = erConfigClassLhConfig::getInstance()->getSetting( 'site', 'secrethash' );
-    $hashToVerify = sha1($secretHash.sha1($secretHash.implode(',', array($userId,$ts))));
+    $hashToVerify = hash_hmac('sha256', implode(',', array($userId,$ts)), $secretHash);
 
     if ($hashToVerify == $hash) {
 
@@ -53,10 +53,17 @@ if ($ts > time()) {
                         ));
                     }
 
+                    $user->force_logout = 0;
+                    $user->llogin = time();
+
                     erLhcoreClassUser::getSession()->update($user);
+
+                    // Password rotation has to rotate the REST API tokens as well
+                    erLhcoreClassModelUserSession::revokeForUser($user->id);
                                         
                     // Login user instantly as during password change he verified his logins
                     erLhcoreClassUser::instance()->setLoggedUser($user->id);
+                    erLhcoreClassUser::instance()->refreshSessionPasswordHash($user);
 
                     erLhcoreClassChatEventDispatcher::getInstance()->dispatch('user.2fa_intercept', array('current_user' => erLhcoreClassUser::instance()));
                     
