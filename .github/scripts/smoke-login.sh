@@ -131,7 +131,7 @@ curl -s "$BASE_URL/index.php/site_admin/user/login/(local)/1" | grep -o '<form i
 mysql "${mysql_args[@]}" -e "DELETE FROM lh_chat_config WHERE identifier='sso_oidc'"
 
 echo "8b. upstream security fixes: cron over HTTP, JSONP callback, open redirect"
-curl -s "$BASE_URL/cron.php?c=cron/workflow" | grep -q 'command line' || fail "cron.php must refuse to run over HTTP"
+OUT=$(curl -s "$BASE_URL/cron.php?c=cron/workflow"); grep -q 'command line' <<< "$OUT" || fail "cron.php must refuse to run over HTTP"
 JSONP=$(curl -s -u "$USERNAME:openkey000000000000000000000000000000000" "$BASE_URL/index.php/restapi/departments?callback=alert(1)//")
 case "$JSONP" in alert*) fail "JSONP callback is not validated" ;; esac
 JSONP=$(curl -s -u "$USERNAME:openkey000000000000000000000000000000000" "$BASE_URL/index.php/restapi/departments?callback=cb_1")
@@ -155,7 +155,7 @@ CSRF=$(curl -s -b "$JAR" -c "$JAR" "$BASE_URL/index.php/site_admin/" | grep -o "
 [ -n "$CSRF" ] || fail "could not read the CSRF token from the admin page"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -X POST "$BASE_URL/index.php/site_admin/ai/suggest/$AI_ID")" = "403" ] || fail "suggestion without a CSRF token must be refused"
 SUGGESTION=$(curl -s -b "$JAR" -X POST -H "X-CSRFToken: $CSRF" "$BASE_URL/index.php/site_admin/ai/suggest/$AI_ID")
-echo "$SUGGESTION" | grep -q 'We are open from 9:00' || fail "no suggestion from the model server (got: $SUGGESTION)"
+grep -q 'We are open from 9:00' <<< "$SUGGESTION" || fail "no suggestion from the model server (got: $SUGGESTION)"
 LAST_REQUEST=$(cat "${TMPDIR:-/tmp}/lhc-mock-llm-last.json")
 grep -q '\[email\]' <<< "$LAST_REQUEST" || fail "personal data was not masked before reaching the model"
 grep -q 'ai.visitor@example.com' <<< "$LAST_REQUEST" && fail "visitor e-mail reached the model server"
@@ -166,23 +166,23 @@ BOT_REPLIES=$(mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_msg WHERE 
 [ "$BOT_REPLIES" = "1" ] || fail "assistant did not answer the waiting visitor (found $BOT_REPLIES replies)"
 # a question the model cannot answer hands the chat to the team, then the assistant stays quiet
 curl -s -o /dev/null -X POST --data-urlencode "msg=I want a refund" "$BASE_URL/index.php/chat/addmsguser/$AI_ID/$AI_HASH"
-mysql "${mysql_args[@]}" -N -e "SELECT chat_variables FROM lh_chat WHERE id=$AI_ID" | grep -q '"handoff":true' || fail "model [HANDOFF] did not hand the chat to the team"
-mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_msg WHERE chat_id=$AI_ID AND user_id=-2 AND msg LIKE 'Let me connect you%'" | grep -qx 1 || fail "handoff message was not shown to the visitor"
+OUT=$(mysql "${mysql_args[@]}" -N -e "SELECT chat_variables FROM lh_chat WHERE id=$AI_ID"); grep -q '"handoff":true' <<< "$OUT" || fail "model [HANDOFF] did not hand the chat to the team"
+OUT=$(mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_msg WHERE chat_id=$AI_ID AND user_id=-2 AND msg LIKE 'Let me connect you%'"); grep -qx 1 <<< "$OUT" || fail "handoff message was not shown to the visitor"
 curl -s -o /dev/null -X POST --data-urlencode "msg=Hello again" "$BASE_URL/index.php/chat/addmsguser/$AI_ID/$AI_HASH"
 [ "$(mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_msg WHERE chat_id=$AI_ID AND user_id=-2")" = "2" ] || fail "assistant kept answering after the handoff"
 AI_AUDITS=$(mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_audits WHERE category='AI'")
 [ "$AI_AUDITS" -ge 3 ] || fail "AI calls were not written to the audit log (found $AI_AUDITS)"
-mysql "${mysql_args[@]}" -N -e "SELECT message FROM lh_audits WHERE category='AI'" | grep -q 'When are you open' && fail "message text leaked into the AI audit log"
+OUT=$(mysql "${mysql_args[@]}" -N -e "SELECT message FROM lh_audits WHERE category='AI'"); grep -q 'When are you open' <<< "$OUT" && fail "message text leaked into the AI audit log"
 # settings page: connection test against the model server, then save
 FORM_TOKEN=$(curl -s -b "$JAR" -c "$JAR" "$BASE_URL/index.php/site_admin/ai/configuration" | grep -o 'name="csfr_token" value="[^"]*"' | head -1 | sed 's/.*value="//; s/"$//')
 [ -n "$FORM_TOKEN" ] || fail "AI settings page did not render"
 AI_FORM=(--data-urlencode "csfr_token=$FORM_TOKEN" --data-urlencode "enabled=on" --data-urlencode "base_url=http://127.0.0.1:9500/v1" --data-urlencode "model=ci-model" --data-urlencode "suggest_enabled=on" --data-urlencode "mask_pii=on" --data-urlencode "autoreply_enabled=on" --data-urlencode "autoreply_departments[]=1")
 AI_TEST_PAGE=$(curl -s -b "$JAR" -X POST "${AI_FORM[@]}" --data-urlencode "TestAiConnection=1" "$BASE_URL/index.php/site_admin/ai/configuration")
 grep -q 'Connection works' <<< "$AI_TEST_PAGE" || fail "AI connection test failed: $(sed 's/<[^>]*>/ /g' <<< "$AI_TEST_PAGE" | tr -s ' \n' ' ' | grep -oiE '(alert|error|failed|permission|login)[^.]{0,200}' | head -3 | tr '\n' ' ')"
-curl -s -b "$JAR" -X POST "${AI_FORM[@]}" --data-urlencode "StoreAiSettings=1" "$BASE_URL/index.php/site_admin/ai/configuration" | grep -q 'Settings updated' || fail "AI settings were not saved"
-mysql "${mysql_args[@]}" -N -e "SELECT value FROM lh_chat_config WHERE identifier='ai_assistant'" | grep -q 'ci-model' || fail "saved AI settings not found"
+OUT=$(curl -s -b "$JAR" -X POST "${AI_FORM[@]}" --data-urlencode "StoreAiSettings=1" "$BASE_URL/index.php/site_admin/ai/configuration"); grep -q 'Settings updated' <<< "$OUT" || fail "AI settings were not saved"
+OUT=$(mysql "${mysql_args[@]}" -N -e "SELECT value FROM lh_chat_config WHERE identifier='ai_assistant'"); grep -q 'ci-model' <<< "$OUT" || fail "saved AI settings not found"
 # opening the chat as an operator shows the suggestion button (done last: it may assign the chat)
-curl -s -b "$JAR" "$BASE_URL/index.php/site_admin/chat/adminchat/$AI_ID" | grep -q "chat-ai-suggest-$AI_ID" || fail "suggestion button missing from the operator chat window"
+OUT=$(curl -s -b "$JAR" "$BASE_URL/index.php/site_admin/chat/adminchat/$AI_ID"); grep -q "chat-ai-suggest-$AI_ID" <<< "$OUT" || fail "suggestion button missing from the operator chat window"
 mysql "${mysql_args[@]}" -e "DELETE FROM lh_chat_config WHERE identifier='ai_assistant'"
 
 echo "9. data retention policy and data subject requests"
