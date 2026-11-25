@@ -23,6 +23,7 @@ class erLhcoreClassAuditTrail
     const CATEGORY_API_KEY = 'ApiKey';
     const CATEGORY_SSO = 'SingleSignOn';
     const CATEGORY_DATA_PROTECTION = 'DataProtection';
+    const CATEGORY_AI = 'AI';
 
     /**
      * @param string $category one of the CATEGORY_* constants (shown in the audit log list)

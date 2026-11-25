@@ -75,9 +75,54 @@ class erLhcoreClassMetrics
             // table not migrated yet
         }
 
+        // AI assistant calls during the last hour, from the audit log (metadata only).
+        try {
+            $stmt = $db->prepare('SELECT `message` FROM `lh_audits` WHERE `category` = :category AND `time` > :since ORDER BY `id` DESC LIMIT 5000');
+            $stmt->bindValue(':category', erLhcoreClassAuditTrail::CATEGORY_AI);
+            $stmt->bindValue(':since', date('Y-m-d H:i:s', $now - 3600));
+            $stmt->execute();
+            $ai = self::aiStats($stmt->fetchAll(PDO::FETCH_COLUMN));
+            foreach ($ai['requests'] as $key => $count) {
+                list($action, $result) = explode('|', $key);
+                self::add($metrics, 'lhc_ai_requests_last_hour', 'AI model calls during the last hour', $count, array('action' => $action, 'result' => $result));
+            }
+            self::add($metrics, 'lhc_ai_latency_seconds_avg_last_hour', 'Average model response time during the last hour (successful calls)', $ai['latency_avg']);
+        } catch (Exception $e) {
+            // audit table not available
+        }
+
         self::add($metrics, 'lhc_up', 'Application and database reachable', 1);
 
         return $metrics;
+    }
+
+    /**
+     * Pure: aggregates AI audit entries (JSON messages) into request counts per
+     * action/result and the average latency of successful calls.
+     */
+    public static function aiStats(array $messages)
+    {
+        $requests = array();
+        foreach (array('suggest', 'autoreply') as $action) {
+            foreach (array('ok', 'error') as $result) {
+                $requests[$action . '|' . $result] = 0;
+            }
+        }
+        $ms = array();
+        foreach ($messages as $message) {
+            $entry = json_decode((string)$message, true);
+            if (!is_array($entry) || !isset($entry['action'], $entry['ok']) || !in_array($entry['action'], array('suggest', 'autoreply'), true)) {
+                continue;
+            }
+            $requests[$entry['action'] . '|' . ($entry['ok'] ? 'ok' : 'error')]++;
+            if ($entry['ok'] && isset($entry['ms'])) {
+                $ms[] = (int)$entry['ms'];
+            }
+        }
+        return array(
+            'requests' => $requests,
+            'latency_avg' => empty($ms) ? 0.0 : round(array_sum($ms) / count($ms) / 1000, 3),
+        );
     }
 
     private static function add(array &$metrics, $name, $help, $value, array $labels = array())

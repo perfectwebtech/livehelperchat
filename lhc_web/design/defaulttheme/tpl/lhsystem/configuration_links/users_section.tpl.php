@@ -36,6 +36,10 @@
 		    <li><a href="<?php echo erLhcoreClassDesign::baseurl('gdpr/subject')?>"><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('system/configuration','Data subject requests (export / erase)');?></a></li>
 		    <?php endif; ?>
 
+		    <?php if ($currentUser->hasAccessTo('lhai','configure')) : ?>
+		    <li><a href="<?php echo erLhcoreClassDesign::baseurl('ai/configuration')?>"><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('system/configuration','AI assistant (self-hosted model server)');?></a></li>
+		    <?php endif; ?>
+
 		    <?php if ($currentUser->hasAccessTo('lhsso','configure')) : ?>
 		    <li><a href="<?php echo erLhcoreClassDesign::baseurl('sso/configuration')?>"><?php echo erTranslationClassLhTranslation::getInstance()->getTranslation('system/configuration','Single sign-on (OpenID Connect)');?></a></li>
 		    <?php endif; ?>

@@ -139,6 +139,51 @@ case "$JSONP" in "/**/cb_1("*) ;; *) fail "valid JSONP callback was not honoured
 LOC=$(curl -s -o /dev/null -w '%{redirect_url}' -c "$JAR" -b "$JAR" "$BASE_URL/index.php/site_admin/user/login/(r)/$(php -r 'echo rawurlencode(base64_encode("//evil.example/x"));')")
 case "$LOC" in *evil.example*) fail "login redirect parameter allows an off-site redirect" ;; esac
 
+echo "8c. AI assistant: reply suggestions and auto-reply against an OpenAI compatible server"
+LLM_PORT=9500
+rm -f "${TMPDIR:-/tmp}/lhc-mock-llm-last.json"
+php -S "127.0.0.1:${LLM_PORT}" "$(dirname "$0")/mock-llm.php" > /dev/null 2>&1 &
+LLM_PID=$!
+trap 'kill $SERVER_PID $MOCK_PID $LLM_PID 2>/dev/null || true; echo "--- php -S log"; cat "$LOG"' EXIT
+AI_SETTINGS=$(php -r 'echo serialize(array("enabled"=>1,"base_url"=>"http://127.0.0.1:9500/v1","model"=>"ci-model","mask_pii"=>1,"suggest_enabled"=>1,"autoreply_enabled"=>1,"autoreply_departments"=>"1","autoreply_max"=>5,"timeout"=>10));')
+mysql "${mysql_args[@]}" -e "INSERT INTO lh_chat_config (\`identifier\`, \`value\`, \`type\`, \`explain\`, \`hidden\`) VALUES ('ai_assistant', '$AI_SETTINGS', 0, 'AI assistant', 1) ON DUPLICATE KEY UPDATE \`value\`='$AI_SETTINGS'"
+AI_CHAT=$(php "$(dirname "$0")/ai-fixture.php" . 2>/dev/null | tail -1)
+AI_ID=$(echo "$AI_CHAT" | php -r 'echo json_decode(stream_get_contents(STDIN), true)["id"];')
+AI_HASH=$(echo "$AI_CHAT" | php -r 'echo json_decode(stream_get_contents(STDIN), true)["hash"];')
+[ -n "$AI_ID" ] || fail "AI fixture chat was not created"
+CSRF=$(curl -s -b "$JAR" -c "$JAR" "$BASE_URL/index.php/site_admin/" | grep -o "confLH.csrf_token = '[^']*'" | head -1 | sed "s/.*= '//; s/'$//")
+[ -n "$CSRF" ] || fail "could not read the CSRF token from the admin page"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" -X POST "$BASE_URL/index.php/site_admin/ai/suggest/$AI_ID")" = "403" ] || fail "suggestion without a CSRF token must be refused"
+SUGGESTION=$(curl -s -b "$JAR" -X POST -H "X-CSRFToken: $CSRF" "$BASE_URL/index.php/site_admin/ai/suggest/$AI_ID")
+echo "$SUGGESTION" | grep -q 'We are open from 9:00' || fail "no suggestion from the model server (got: $SUGGESTION)"
+LAST_REQUEST=$(cat "${TMPDIR:-/tmp}/lhc-mock-llm-last.json")
+grep -q '\[email\]' <<< "$LAST_REQUEST" || fail "personal data was not masked before reaching the model"
+grep -q 'ai.visitor@example.com' <<< "$LAST_REQUEST" && fail "visitor e-mail reached the model server"
+grep -q '"model":"ci-model"' <<< "$LAST_REQUEST" || fail "configured model was not requested"
+# visitor writes while waiting: the assistant answers as the bot
+curl -s -o /dev/null -X POST --data-urlencode "msg=When are you open?" "$BASE_URL/index.php/chat/addmsguser/$AI_ID/$AI_HASH"
+BOT_REPLIES=$(mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_msg WHERE chat_id=$AI_ID AND user_id=-2 AND msg LIKE 'We are open from 9:00%'")
+[ "$BOT_REPLIES" = "1" ] || fail "assistant did not answer the waiting visitor (found $BOT_REPLIES replies)"
+# a question the model cannot answer hands the chat to the team, then the assistant stays quiet
+curl -s -o /dev/null -X POST --data-urlencode "msg=I want a refund" "$BASE_URL/index.php/chat/addmsguser/$AI_ID/$AI_HASH"
+mysql "${mysql_args[@]}" -N -e "SELECT chat_variables FROM lh_chat WHERE id=$AI_ID" | grep -q '"handoff":true' || fail "model [HANDOFF] did not hand the chat to the team"
+mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_msg WHERE chat_id=$AI_ID AND user_id=-2 AND msg LIKE 'Let me connect you%'" | grep -qx 1 || fail "handoff message was not shown to the visitor"
+curl -s -o /dev/null -X POST --data-urlencode "msg=Hello again" "$BASE_URL/index.php/chat/addmsguser/$AI_ID/$AI_HASH"
+[ "$(mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_msg WHERE chat_id=$AI_ID AND user_id=-2")" = "2" ] || fail "assistant kept answering after the handoff"
+AI_AUDITS=$(mysql "${mysql_args[@]}" -N -e "SELECT COUNT(*) FROM lh_audits WHERE category='AI'")
+[ "$AI_AUDITS" -ge 3 ] || fail "AI calls were not written to the audit log (found $AI_AUDITS)"
+mysql "${mysql_args[@]}" -N -e "SELECT message FROM lh_audits WHERE category='AI'" | grep -q 'When are you open' && fail "message text leaked into the AI audit log"
+# settings page: connection test against the model server, then save
+FORM_TOKEN=$(curl -s -b "$JAR" -c "$JAR" "$BASE_URL/index.php/site_admin/ai/configuration" | grep -o 'name="csfr_token" value="[^"]*"' | head -1 | sed 's/.*value="//; s/"$//')
+[ -n "$FORM_TOKEN" ] || fail "AI settings page did not render"
+AI_FORM=(--data-urlencode "csfr_token=$FORM_TOKEN" --data-urlencode "enabled=on" --data-urlencode "base_url=http://127.0.0.1:9500/v1" --data-urlencode "model=ci-model" --data-urlencode "suggest_enabled=on" --data-urlencode "mask_pii=on" --data-urlencode "autoreply_enabled=on" --data-urlencode "autoreply_departments[]=1")
+curl -s -b "$JAR" -X POST "${AI_FORM[@]}" --data-urlencode "TestAiConnection=1" "$BASE_URL/index.php/site_admin/ai/configuration" | grep -q 'Connection works' || fail "AI connection test failed"
+curl -s -b "$JAR" -X POST "${AI_FORM[@]}" --data-urlencode "StoreAiSettings=1" "$BASE_URL/index.php/site_admin/ai/configuration" | grep -q 'Settings updated' || fail "AI settings were not saved"
+mysql "${mysql_args[@]}" -N -e "SELECT value FROM lh_chat_config WHERE identifier='ai_assistant'" | grep -q 'ci-model' || fail "saved AI settings not found"
+# opening the chat as an operator shows the suggestion button (done last: it may assign the chat)
+curl -s -b "$JAR" "$BASE_URL/index.php/site_admin/chat/adminchat/$AI_ID" | grep -q "chat-ai-suggest-$AI_ID" || fail "suggestion button missing from the operator chat window"
+mysql "${mysql_args[@]}" -e "DELETE FROM lh_chat_config WHERE identifier='ai_assistant'"
+
 echo "9. data retention policy and data subject requests"
 IDS=$(php "$(dirname "$0")/gdpr-fixture.php" . 2>/dev/null | tail -1)
 id_of() { echo "$IDS" | php -r '$d = json_decode(stream_get_contents(STDIN), true); echo $d[$argv[1]];' "$1"; }
