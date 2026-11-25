@@ -177,7 +177,8 @@ mysql "${mysql_args[@]}" -N -e "SELECT message FROM lh_audits WHERE category='AI
 FORM_TOKEN=$(curl -s -b "$JAR" -c "$JAR" "$BASE_URL/index.php/site_admin/ai/configuration" | grep -o 'name="csfr_token" value="[^"]*"' | head -1 | sed 's/.*value="//; s/"$//')
 [ -n "$FORM_TOKEN" ] || fail "AI settings page did not render"
 AI_FORM=(--data-urlencode "csfr_token=$FORM_TOKEN" --data-urlencode "enabled=on" --data-urlencode "base_url=http://127.0.0.1:9500/v1" --data-urlencode "model=ci-model" --data-urlencode "suggest_enabled=on" --data-urlencode "mask_pii=on" --data-urlencode "autoreply_enabled=on" --data-urlencode "autoreply_departments[]=1")
-curl -s -b "$JAR" -X POST "${AI_FORM[@]}" --data-urlencode "TestAiConnection=1" "$BASE_URL/index.php/site_admin/ai/configuration" | grep -q 'Connection works' || fail "AI connection test failed"
+AI_TEST_PAGE=$(curl -s -b "$JAR" -X POST "${AI_FORM[@]}" --data-urlencode "TestAiConnection=1" "$BASE_URL/index.php/site_admin/ai/configuration")
+grep -q 'Connection works' <<< "$AI_TEST_PAGE" || fail "AI connection test failed: $(sed 's/<[^>]*>/ /g' <<< "$AI_TEST_PAGE" | tr -s ' \n' ' ' | grep -oiE '(alert|error|failed|permission|login)[^.]{0,200}' | head -3 | tr '\n' ' ')"
 curl -s -b "$JAR" -X POST "${AI_FORM[@]}" --data-urlencode "StoreAiSettings=1" "$BASE_URL/index.php/site_admin/ai/configuration" | grep -q 'Settings updated' || fail "AI settings were not saved"
 mysql "${mysql_args[@]}" -N -e "SELECT value FROM lh_chat_config WHERE identifier='ai_assistant'" | grep -q 'ci-model' || fail "saved AI settings not found"
 # opening the chat as an operator shows the suggestion button (done last: it may assign the chat)
