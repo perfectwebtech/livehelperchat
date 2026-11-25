@@ -23,14 +23,18 @@ LHC_METRICS_TOKEN=ci-metrics-token
 LHC_HSTS_MAX_AGE=300
 LHC_DOMAIN=localhost
 LHC_PROXY_MODE=1
+LHC_AI_BASE_URL=http://ollama:11434/v1
+LHC_AI_MODEL=ci-compose-model
 ENV
 
 fail() { echo "::error::$1"; docker compose ps; docker compose logs --tail=80; exit 1; }
 trap 'docker compose down -v > /dev/null 2>&1 || true; rm -f .env' EXIT
 
+ADMIN_JAR=""
 login() {
   local jar token
   jar="$(mktemp)"
+  ADMIN_JAR="$jar"
   token=$(curl -s -c "$jar" -b "$jar" "$BASE_URL/index.php/site_admin/user/login" | grep -o 'name="csfr_token" value="[^"]*"' | head -1 | sed 's/.*value="//; s/"$//')
   [ -n "$token" ] || return 1
   curl -s -c "$jar" -b "$jar" -o /dev/null -X POST "$BASE_URL/index.php/site_admin/user/login" \
@@ -85,6 +89,11 @@ echo "8. Prometheus metrics behind a bearer token, security headers"
 METRICS="$(curl -sf -H 'Authorization: Bearer ci-metrics-token' "$BASE_URL/index.php/system/metrics")" || fail "metrics with the bearer token failed"
 grep -F 'lhc_up 1' <<< "$METRICS" > /dev/null || fail "metrics do not report lhc_up 1"
 grep -F 'lhc_chats{state="pending"}' <<< "$METRICS" > /dev/null || fail "metrics miss the pending chat gauge"
+grep -F 'lhc_ai_requests_last_hour{action="autoreply",result="error"} 0' <<< "$METRICS" > /dev/null || fail "metrics miss the AI request gauge"
+# LHC_AI_* from .env reach PHP under Apache and lock the settings fields.
+AI_PAGE="$(curl -s -b "$ADMIN_JAR" "$BASE_URL/index.php/site_admin/ai/configuration")"
+grep -F 'value="http://ollama:11434/v1" readonly' <<< "$AI_PAGE" > /dev/null || fail "LHC_AI_BASE_URL from the environment is not applied"
+grep -F 'value="ci-compose-model" readonly' <<< "$AI_PAGE" > /dev/null || fail "LHC_AI_MODEL from the environment is not applied"
 HEADERS="$(curl -s -D - -o /dev/null "$BASE_URL/index.php/site_admin/user/login")"
 grep -i 'Referrer-Policy: strict-origin-when-cross-origin' <<< "$HEADERS" > /dev/null || fail "admin pages miss Referrer-Policy"
 grep -i 'Strict-Transport-Security' <<< "$(curl -s -D - -o /dev/null -H 'X-Forwarded-Proto: https' "$BASE_URL/index.php/site_admin/user/login")" > /dev/null || fail "HSTS missing on HTTPS responses although LHC_HSTS_MAX_AGE is set"

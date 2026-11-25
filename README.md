@@ -69,7 +69,7 @@ tools/vendor/bin/phpstan analyse
 
 ### Production deployment with Docker Compose
 
-The full runbook (server, first deployment, go-live checklist, updates, rollback, backups, monitoring) is in [DEPLOYMENT.md](DEPLOYMENT.md). Upstream security fixes ported into this fork, and the behaviour changes they bring, are listed in [SECURITY-UPSTREAM-SYNC.md](SECURITY-UPSTREAM-SYNC.md). Quick start:
+The full runbook (server, first deployment, go-live checklist, updates, rollback, backups, monitoring) is in [DEPLOYMENT.md](DEPLOYMENT.md). Upstream security fixes ported into this fork, and the behaviour changes they bring, are listed in [SECURITY-UPSTREAM-SYNC.md](SECURITY-UPSTREAM-SYNC.md). The optional self-hosted AI assistant (reply suggestions and automatic answers using vLLM or Ollama on your GPU) is described in [AI-ASSISTANT.md](AI-ASSISTANT.md). Quick start:
 
 ```
 cp .env.example .env        # set the passwords and LHC_SECRET_HASH

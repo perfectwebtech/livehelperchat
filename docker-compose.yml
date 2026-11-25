@@ -7,6 +7,9 @@
 # Let's Encrypt certificates for LHC_DOMAIN (set LHC_PROXY_MODE=1 with it).
 # Or put your own TLS proxy / load balancer in front of the web port.
 # See DEPLOYMENT.md.
+#
+# Self-hosted AI on this server's GPU: `docker compose --profile ai up -d`
+# adds Ollama (needs the NVIDIA Container Toolkit). See AI-ASSISTANT.md.
 
 x-lhc-env: &lhc-env
   LHC_DB_HOST: db
@@ -20,6 +23,10 @@ x-lhc-env: &lhc-env
   LHC_HSTS_MAX_AGE: ${LHC_HSTS_MAX_AGE:-0}
   LHC_PROXY_MODE: ${LHC_PROXY_MODE:-0}
   LHC_TRUSTED_HOST_PATTERNS: ${LHC_TRUSTED_HOST_PATTERNS:-}
+  # Optional AI assistant model server; these override the values in the settings page.
+  LHC_AI_BASE_URL: ${LHC_AI_BASE_URL:-}
+  LHC_AI_MODEL: ${LHC_AI_MODEL:-}
+  LHC_AI_API_KEY: ${LHC_AI_API_KEY:-}
 
 x-lhc-volumes: &lhc-volumes
   - lhc-data:/data
@@ -99,9 +106,30 @@ services:
       - caddy-data:/data
       - caddy-config:/config
 
+  # Self-hosted model server on the GPU. Enable with: docker compose --profile ai up -d
+  # then pull a model once: docker compose exec ollama ollama pull qwen2.5:7b-instruct
+  # and set LHC_AI_BASE_URL=http://ollama:11434/v1, LHC_AI_MODEL=qwen2.5:7b-instruct.
+  # Not published on the host: only the web container reaches it.
+  ollama:
+    image: ${LHC_OLLAMA_IMAGE:-ollama/ollama:latest}
+    profiles: ["ai"]
+    restart: unless-stopped
+    environment:
+      OLLAMA_KEEP_ALIVE: ${LHC_OLLAMA_KEEP_ALIVE:-24h}
+    volumes:
+      - ollama-models:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${LHC_OLLAMA_GPUS:-all}
+              capabilities: [gpu]
+
 volumes:
   lhc-db:
   lhc-data:
   lhc-uploads:
   caddy-data:
   caddy-config:
+  ollama-models:

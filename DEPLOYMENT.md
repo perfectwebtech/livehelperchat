@@ -117,10 +117,16 @@ scrape_configs:
 
 Suggested alerts: `lhc_up == 0` or scrape failing for 2 minutes; `lhc_pending_chat_oldest_seconds > 120`; `lhc_operators_online == 0` during business hours; `lhc_login_locks_active > 20` (brute-force attempt); backup cron log not updated for 26 hours.
 
+With the AI assistant enabled, also alert when `lhc_ai_requests_last_hour{result="error"}` exceeds 20 % of requests (see [AI-ASSISTANT.md](AI-ASSISTANT.md#4-monitoring)).
+
 Logs: `docker compose logs -f web` (Apache and PHP), `scheduler` (one line per background job), `caddy` (TLS and access).
 
 ## 7. Known limits
 
-- This fork is based on Live Helper Chat from February 2023. Upstream has released security fixes since; review and merge them before or soon after going live.
+- This fork is based on Live Helper Chat from February 2023. Upstream security fixes up to November 2026 are ported (see [SECURITY-UPSTREAM-SYNC.md](SECURITY-UPSTREAM-SYNC.md)); repeat the review from time to time.
 - The scheduler runs jobs every minute in one container; do not scale it beyond one replica. The web service can be scaled horizontally only with shared storage for the `lhc-uploads` and `lhc-data` volumes.
 - Real-time push (the optional NodeJS helper) is not part of this stack; the widget and back office use polling, which is the upstream default.
+
+## 8. AI assistant (optional)
+
+Reply suggestions for operators and automatic answers while visitors wait, using a model on your own GPU (bundled Ollama with `docker compose --profile ai up -d`, or vLLM on a separate server). Setup, privacy and monitoring: [AI-ASSISTANT.md](AI-ASSISTANT.md).
